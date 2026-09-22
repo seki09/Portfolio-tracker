@@ -175,8 +175,16 @@ Five steps, with a persistent stepper. Nothing touches the ledger before step 5.
 are hashed on arrival; re-dropping a file you have already imported is caught here with
 "You imported this exact file on 3 Aug — import anyway?".
 
+Files upload **directly to storage**, not through the app server, so a 30 MB multi-year
+export behaves no differently from a 20 KB one. Each file shows its own progress bar and
+can be removed mid-upload without abandoning the others.
+
 **② Detect.** Each file is fingerprinted against the adapter registry (header signature for
-tabular files, text markers for PDFs). The UI reports what it found and lets you override:
+tabular files, text markers for PDFs). Parsing runs in the background rather than blocking
+the page, so this step has a visible waiting state — per file, `Parsing… 340 / 1,204 rows`
+— and a large file never looks frozen. You can navigate away and come back; the batch is
+waiting under Import → History in whatever state it reached. The UI reports what it found
+and lets you override:
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -331,7 +339,10 @@ Naming these protects the schedule; each is a plausible v2.
 
 - Crypto, cash accounts, bonds-by-maturity, options, real estate, manual/illiquid assets.
   (The data model accommodates them; the UI does not.)
-- Multi-user accounts, sharing, or any public/read-only view.
+- Multi-user accounts, sharing, or any public/read-only view. (*Hosting* the app in the
+  cloud is a separate question and is planned for — see
+  [deployment-portability.md](deployment-portability.md). It remains a single-user app
+  either way: one deployment, one password, one portfolio.)
 - Tax reporting or tax-lot optimisation. German specifics (Vorabpauschale, Teilfreistellung)
   are out of scope and should not be half-implemented.
 - Trading, rebalancing execution, or broker write access.
