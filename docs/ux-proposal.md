@@ -351,14 +351,15 @@ Naming these protects the schedule; each is a plausible v2.
 
 ## 11. Open questions
 
-1. **Which brokers first?** Each adapter is real work and the choice sets the fixture set.
-   Trade Republic, Scalable Capital, IBKR and DEGIRO are the likely candidates — which do
-   you actually hold?
-2. **Base currency** — EUR assumed throughout this document.
+1. ~~**Which brokers first?**~~ **Answered:** Parqet (migration), flatex.at and DADAT /
+   dad.at. See [implementation-plan.md §4.1](implementation-plan.md) — Parqet goes first
+   because its export seeds the whole history in one import.
+2. **Base currency** — EUR assumed throughout, consistent with all three sources.
 3. **Cost basis method** — FIFO assumed. Average cost is the alternative and changes both
    the lots UI and the realised-gain figures.
 4. **Benchmark comparison** — worth it for v1, or v2? It is cheap once the daily series
    exists (one extra security's price history) and it is the first thing people ask for
    after seeing a return number.
-5. **How far back does your history go, and in what form?** If the earliest years exist only
-   as PDFs, the PDF adapters move ahead of polish on the milestone list.
+5. **Is the Parqet export complete for your earliest years?** The plan assumes it is, and
+   demotes PDF parsing below analytics on that basis. If Parqet is missing your first
+   year or two, say so — the flatex/DADAT PDF adapters move back up the list.

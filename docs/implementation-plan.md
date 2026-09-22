@@ -353,9 +353,80 @@ version, detect the version explicitly, and fail *loudly into the review queue* 
 parsing a changed layout into plausible-looking wrong numbers. Scanned/image PDFs are out
 of scope — detect the absence of a text layer and say so.
 
-**Planned adapter set** (final list pending question 1 in the UX doc): generic CSV/XLSX,
-Trade Republic (CSV + PDF), Scalable Capital (CSV + PDF), IBKR Activity Statement (CSV),
-DEGIRO (CSV).
+### 4.1 Target adapter set
+
+Three named sources, all Austrian/EUR, plus the generic fallback. Build order matters more
+than usual here, and it is not the obvious one.
+
+| # | Adapter id | Source | Kind | Why this order |
+| --- | --- | --- | --- | --- |
+| 1 | `parqet-csv` | **Parqet** transaction export | CSV | **Bootstraps the entire app in one import.** Your full history already exists there, normalised |
+| 2 | `flatex-at-csv` | **flatex.at** transaction export | CSV | Ongoing imports; the bulk of new activity |
+| 3 | `dadat-csv` | **DADAT / dad.at** Umsatzliste | CSV/XLSX | Ongoing imports |
+| 4 | `generic-tabular` | anything else | CSV/XLSX | The column mapper; also the escape hatch when 1–3 hit an unknown layout |
+| 5 | `flatex-at-pdf` | flatex Abrechnungen | PDF | Gap-filling for anything the CSV export omits or truncates |
+| 6 | `dadat-pdf` | DADAT Abrechnungen | PDF | As above |
+
+**Parqet first, and it changes the schedule.** You already have a populated portfolio in
+Parqet, and its CSV export is a single normalised file covering every transaction across
+every broker — the exact shape this app's ledger wants. One adapter and one import and the
+app is fully populated with real history, which means: the dashboard, holdings, lots,
+valuation and returns all become testable against real data *in M3*, and **the PDF work in
+M4 stops being urgent**. PDF adapters were the fallback for recovering old history; if
+Parqet already holds it, M4 becomes a convenience for future statements rather than a
+prerequisite for a complete picture. Recommend moving PDF behind analytics (see §9).
+
+Treat the Parqet export as a **migration path, not a dependency** — it seeds history once,
+then flatex and DADAT carry ongoing imports directly. Nothing should require Parqet to keep
+existing.
+
+### 4.2 Austrian source specifics
+
+These three sources share a regional profile that the generic adapters must handle, and it
+differs from the German/US defaults most parsers assume:
+
+- **Number and date format:** `1.234,56` (dot thousands, comma decimal) and `DD.MM.YYYY`.
+  Both are configurable in `import_profile`, so this is a profile default rather than
+  adapter-specific code.
+- **Encoding:** flatex and DADAT exports have historically been Windows-1252/ISO-8859-1
+  rather than UTF-8. Detect the encoding rather than assuming — `Aktiengesellschaft` arriving
+  as mojibake silently breaks security name matching.
+- **Delimiter:** semicolon, not comma, which is standard for German-locale CSV.
+- **Two dates per row** (`Buchungstag` vs. `Valuta` / booking vs. settlement). Map the
+  booking/execution date to `executed_at` and settlement to `settled_on`; using the wrong
+  one shifts positions by days and visibly distorts the history chart.
+- **KESt withheld at source.** Austrian brokers deduct 27.5% Kapitalertragsteuer from
+  dividends and realised gains before payout. Rows therefore carry gross, tax and net, and
+  the `tax` column must be populated rather than folded into `net_amount` — otherwise
+  dividend yield and gross income figures read ~27% low. This is the single most likely
+  Austria-specific bug.
+- **German-language type strings** (`Kauf`, `Verkauf`, `Dividende`, `Ertrag`, `Spesen`,
+  `KESt`, `Einzahlung`, `Auszahlung`, `Sparplan`) map to the canonical enum via a shared
+  German lexicon in `packages/importers/lexicon/de.ts`, reused by all three adapters.
+- **Savings-plan (`Sparplan`) executions** produce fractional quantities at odd prices — the
+  reason `quantity` carries 10 decimal places in the schema.
+- **Austrian fund taxation** (*ausschüttungsgleiche Erträge* on accumulating funds) is the
+  Austrian analogue of the German Vorabpauschale. Explicitly out of scope for v1, but such
+  rows may appear in exports: parse them as `TAX` transactions so cash balances stay correct,
+  and do not attempt to interpret them.
+
+**The exact column sets are not guessed here on purpose.** Each adapter's field mapping gets
+written against a real export file and frozen as a golden fixture. Export formats for these
+three change without notice and published schemas go stale, so one redacted real file per
+source is the specification — see §11.
+
+### 4.3 Parqet export notes
+
+Parqet's export is already close to canonical: one row per transaction with ISIN, type,
+date, quantity, price, fee, tax, total and the originating broker/portfolio. Two things
+still need care:
+
+- **Its `holding`/portfolio column maps to `account`**, so a Parqet export spanning flatex
+  and DADAT creates or matches both accounts in one import rather than collapsing them.
+- **Overlap with direct broker imports is guaranteed** once ongoing flatex/DADAT imports
+  start alongside seeded Parqet history. The `dedupe_hash` is what makes that safe, and
+  this is exactly the scenario the review screen's visible-duplicates design exists for —
+  it will be exercised on day one, not hypothetically.
 
 ## 5. Price and FX data (`packages/prices`)
 
@@ -480,9 +551,9 @@ no milestone is purely internal.
 | **M0** | Foundations | pnpm monorepo, Docker compose, Postgres, Drizzle migrations, CI, stateless auth, app shell with nav · **[portability]** zod config module, DB driver adapter, §3 lint rules | ~1 wk + 1 d |
 | **M1** | Ledger core | Schema, `buildLots`, manual transaction entry, accounts, securities CRUD, holdings table with cost basis — **usable as a manual tracker** | ~2 wks |
 | **M2** | Prices & history | Provider abstraction + first provider, EOD/FX fetch, `dailySeries`, `portfolio_value_daily`, dashboard with the value + contributions chart · **[portability]** jobs as cursor-based HTTP handlers, "Run now" in Settings | ~1.5 wks + 1 d |
-| **M3** | Import pipeline | Adapter registry, generic CSV/XLSX adapter, column mapper, import profiles, staging, dedupe, review screen, commit + undo, **2 broker adapters** · **[portability]** `BlobStore` + disk impl, direct-to-blob upload, async parse job | ~2.5 wks + 2 d |
-| **M4** | PDF import | `pdfjs-dist` extraction, layout-aware matching, 2 broker PDF adapters, version detection, fixture harness | ~1.5 wks |
-| **M5** | Analytics | TWR + XIRR, position detail page with transaction markers, allocation breakdowns, dividend history and calendar, realised gains | ~1.5 wks |
+| **M3** | Import pipeline | Adapter registry, generic CSV/XLSX adapter, column mapper, import profiles, staging, dedupe, review screen, commit + undo, **`parqet-csv` + `flatex-at-csv` + `dadat-csv`**, German lexicon · **[portability]** `BlobStore` + disk impl, direct-to-blob upload, async parse job | ~2.5 wks + 2 d |
+| **M4** | Analytics | TWR + XIRR, position detail page with transaction markers, allocation breakdowns, dividend history and calendar, realised gains | ~1.5 wks |
+| **M5** | PDF import | `pdfjs-dist` extraction, layout-aware matching, `flatex-at-pdf` + `dadat-pdf`, layout-version detection, fixture harness | ~1.5 wks |
 | **M6** | Polish | Review queue, backup/restore, demo data, responsive layouts, dark mode, keyboard shortcuts, accessibility pass, benchmark comparison | ~1.5 wks |
 | **M7** | Cloud deploy *(optional, any time after M3)* | Netlify adapter: `netlify.toml`, Scheduled Functions, Netlify Blobs impl, Neon provisioning, parse-then-discard default, deploy docs | ~3 d |
 
@@ -494,9 +565,15 @@ it can be done in an afternoon-sized burst whenever you want cloud access, rathe
 being a dependency of anything. The local Docker path stays the primary, best-supported
 target throughout.
 
-Sequencing note: M3 before M4 deliberately. The staging, dedupe, review and undo machinery
-is shared by both, and it is much easier to build and debug against CSV — where you can see
-the input — than against PDF text extraction.
+**Sequencing note: PDF (now M5) has been demoted below analytics (now M4).** Two reasons.
+First, the staging, dedupe, review and undo machinery is shared by both CSV and PDF, and is
+far easier to build and debug against CSV, where you can see the input. Second and more
+decisively: the Parqet import in M3 should already deliver your complete history, which was
+the original justification for prioritising PDF. After M3 the app holds real data, so
+analytics built in M4 can be validated against numbers you already know from Parqet — a
+much better test than fixtures. If it turns out Parqet's export is incomplete for your early
+years, swap M4 and M5 back; that is a one-line change to this table, which is why the
+adapter interface stays uniform across CSV and PDF.
 
 ## 10. Risks
 
@@ -505,6 +582,9 @@ the input — than against PDF text extraction.
 | Free price provider disappears or changes terms | Portfolio stops valuing | Provider abstraction from day one; two implementations by M2; manual price entry always available |
 | ISIN → listing resolution picks the wrong exchange | Wrong values, subtly | Editable `price_symbol` with a test-fetch button; flag currency mismatch between security and returned price |
 | Broker changes its export format | Adapter silently mis-parses | Version detection + golden fixtures; adapters fail into the review queue rather than guessing |
+| KESt handled as part of net rather than as `tax` | Dividend yield and gross income read ~27% low | Explicit assertion in the Austrian adapters that gross − tax − fee = net, surfaced as a row issue when it fails |
+| Windows-1252 export read as UTF-8 | Mojibake names break security matching | Encoding detection, plus a fixture in the original encoding per adapter |
+| Parqet export proves incomplete for early years | History starts later than reality | Verify coverage against Parqet's own UI before M4/M5 ordering is locked; PDF adapters are the fallback and stay in the plan |
 | PDF extraction proves brittle across layout versions | M4 overruns | Time-box per adapter; CSV path always available as the fallback; detect unknown layout and say so explicitly |
 | Float arithmetic leaks into the money path | Cent-level drift, eroded trust | `numeric` + `decimal.js`, a lint rule banning arithmetic operators on money types, property tests asserting exact sums |
 | Corporate actions (splits, mergers) handled wrongly | Historical quantities wrong | Manual corporate-action entry in v1 with a clear UI; automatic feeds only once a provider proves reliable |
@@ -522,5 +602,9 @@ the input — than against PDF text extraction.
 3. Start M0: scaffold the monorepo, compose file and CI — including the config module, the
    DB driver adapter and the §3 lint rules, so portability is enforced from the first
    commit rather than audited back in later.
-4. In parallel, collect **one real export file per broker** you hold. Those files are the
-   specification for M3 and M4, and redacted copies become the first fixtures.
+4. In parallel, collect **one real export file per source**: a Parqet CSV export, a
+   flatex.at transaction export, a DADAT Umsatzliste, and one PDF Abrechnung from each
+   broker. These files are the actual specification for M3 and M5 — the column mappings in
+   §4.1 are deliberately written against real files rather than guessed — and redacted
+   copies become the first golden fixtures. **The Parqet export is the highest-value one**;
+   with it, M3 ends with the app fully populated with your real history.
