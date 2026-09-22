@@ -1,0 +1,1149 @@
+<title>Depot Ledger</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --plane:#eef1f4; --surface:#ffffff; --surface-2:#f7f9fa; --surface-3:#eceff2;
+  --ink:#10161c; --ink-2:#4a5560; --muted:#77838d;
+  --line:#dde3e8; --line-2:#c6ced5;
+  --accent:#2a78d6; --accent-ink:#1c5cab; --accent-wash:rgba(42,120,214,.10);
+  --band:#b9c3cb; --band-fill:rgba(185,195,203,.34);
+  --pos:#006300; --neg:#c0322f; --pos-chip:rgba(12,163,12,.12); --neg-chip:rgba(208,59,59,.12);
+  --warn:#9a6b00; --warn-chip:rgba(250,178,25,.16);
+  --c1:#2a78d6; --c2:#eb6834; --c3:#1baf7a; --c4:#eda100;
+  --focus:#2a78d6;
+  --r:7px; --rail:208px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --plane:#0b0e11; --surface:#14181c; --surface-2:#191e23; --surface-3:#21272d;
+  --ink:#eef2f5; --ink-2:#a7b3bd; --muted:#7d8992;
+  --line:#242b31; --line-2:#333c44;
+  --accent:#3987e5; --accent-ink:#79b0f2; --accent-wash:rgba(57,135,229,.16);
+  --band:#4d5960; --band-fill:rgba(120,134,144,.28);
+  --pos:#2fb84a; --neg:#ef7070; --pos-chip:rgba(47,184,74,.15); --neg-chip:rgba(239,112,112,.15);
+  --warn:#e0a53a; --warn-chip:rgba(250,178,25,.14);
+  --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500;
+  --focus:#79b0f2;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --plane:#0b0e11; --surface:#14181c; --surface-2:#191e23; --surface-3:#21272d;
+  --ink:#eef2f5; --ink-2:#a7b3bd; --muted:#7d8992;
+  --line:#242b31; --line-2:#333c44;
+  --accent:#3987e5; --accent-ink:#79b0f2; --accent-wash:rgba(57,135,229,.16);
+  --band:#4d5960; --band-fill:rgba(120,134,144,.28);
+  --pos:#2fb84a; --neg:#ef7070; --pos-chip:rgba(47,184,74,.15); --neg-chip:rgba(239,112,112,.15);
+  --warn:#e0a53a; --warn-chip:rgba(250,178,25,.14);
+  --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500;
+  --focus:#79b0f2;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--plane); color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:13.5px; line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+.num{font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* ---------- shell ---------- */
+.app{display:grid;grid-template-columns:var(--rail) 1fr;min-height:100%}
+.rail{
+  border-right:1px solid var(--line); background:var(--surface);
+  display:flex;flex-direction:column;gap:2px;padding:18px 12px 24px;
+  position:sticky;top:env(safe-area-inset-top,0px);align-self:start;height:100vh;
+}
+.brand{display:flex;align-items:center;gap:9px;padding:0 8px 16px;margin-bottom:6px;border-bottom:1px solid var(--line)}
+.brand .mark{width:22px;height:22px;border-radius:5px;background:var(--accent);display:grid;place-items:center;flex:none}
+.brand .mark span{color:#fff;font-size:12px;font-weight:700;letter-spacing:-.02em}
+.brand b{font-size:13.5px;font-weight:600;letter-spacing:-.01em}
+.navhead{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);padding:14px 8px 5px;font-weight:600}
+.nav{display:flex;align-items:center;gap:9px;width:100%;padding:7px 8px;border-radius:6px;color:var(--ink-2);text-align:left;font-size:13px}
+.nav:hover{background:var(--surface-3);color:var(--ink)}
+.nav[aria-current="page"]{background:var(--accent-wash);color:var(--accent-ink);font-weight:600}
+.nav svg{flex:none;opacity:.85}
+.nav .badge{margin-left:auto;background:var(--warn-chip);color:var(--warn);font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:20px}
+.main{min-width:0;display:flex;flex-direction:column}
+
+.topbar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:10px 22px;border-bottom:1px solid var(--line);background:var(--surface);
+  position:sticky;top:env(safe-area-inset-top,0px);z-index:20;
+}
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-2);border-radius:6px;padding:5px 9px;font-size:12.5px;color:var(--ink-2);background:var(--surface)}
+.pill:hover{border-color:var(--muted);color:var(--ink)}
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:6px;overflow:hidden}
+.seg button{padding:5px 9px;font-size:12px;color:var(--ink-2);border-right:1px solid var(--line-2);font-variant-numeric:tabular-nums}
+.seg button:last-child{border-right:0}
+.seg button:hover{background:var(--surface-3);color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff;font-weight:600}
+.spacer{margin-left:auto}
+.kbd{border:1px solid var(--line-2);border-bottom-width:2px;border-radius:5px;padding:2px 6px;font-size:11px;color:var(--muted)}
+.content{padding:22px;display:flex;flex-direction:column;gap:18px}
+
+/* ---------- generic ---------- */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.phead{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.phead h2{margin:0;font-size:13px;font-weight:600;letter-spacing:-.005em}
+.phead .sub{font-size:11.5px;color:var(--muted)}
+.pbody{padding:16px}
+h1{margin:0;font-size:19px;font-weight:600;letter-spacing:-.015em;text-wrap:balance}
+.lede{color:var(--ink-2);font-size:13px;margin:4px 0 0;max-width:62ch}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 7px;border-radius:20px;white-space:nowrap}
+.chip.pos{background:var(--pos-chip);color:var(--pos)}
+.chip.neg{background:var(--neg-chip);color:var(--neg)}
+.chip.warn{background:var(--warn-chip);color:var(--warn)}
+.chip.neutral{background:var(--surface-3);color:var(--ink-2)}
+.chip.info{background:var(--accent-wash);color:var(--accent-ink)}
+.pos{color:var(--pos)} .neg{color:var(--neg)}
+.stale{font-size:10.5px;color:var(--muted);border:1px solid var(--line-2);border-radius:20px;padding:1px 7px;white-space:nowrap}
+.btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-2);border-radius:6px;padding:7px 12px;font-size:12.5px;font-weight:500;background:var(--surface)}
+.btn:hover{background:var(--surface-3)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.primary:hover{background:var(--accent-ink);border-color:var(--accent-ink)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn.ghost{border-color:transparent;color:var(--accent-ink)}
+.btn.ghost:hover{background:var(--accent-wash)}
+
+/* ---------- dashboard ---------- */
+.hero{display:grid;grid-template-columns:1fr;gap:0}
+.herotop{padding:18px 20px 12px;display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+.totlabel{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.total{font-size:36px;font-weight:600;letter-spacing:-.025em;line-height:1.1;margin-top:3px}
+.totrow{display:flex;align-items:center;gap:8px;margin-top:7px;flex-wrap:wrap}
+.stats{display:flex;gap:26px;flex-wrap:wrap;margin-left:auto;padding-top:6px}
+.stat .k{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.stat .v{font-size:16px;font-weight:600;letter-spacing:-.01em;margin-top:2px;font-variant-numeric:tabular-nums}
+.chartwrap{position:relative;padding:4px 14px 12px}
+.chartwrap svg{display:block;width:100%;height:auto;overflow:visible}
+.legend{display:flex;gap:16px;align-items:center;padding:0 20px 14px;flex-wrap:wrap}
+.lg{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:var(--ink-2)}
+.sw{width:11px;height:11px;border-radius:3px;flex:none}
+.tip{
+  position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--line-2);
+  border-radius:6px;padding:8px 10px;font-size:11.5px;box-shadow:0 6px 20px rgba(0,0,0,.12);
+  min-width:168px;z-index:5;
+}
+.tip .t{font-weight:600;font-size:11px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;margin-bottom:5px}
+.tip .r{display:flex;justify-content:space-between;gap:14px;font-variant-numeric:tabular-nums}
+.tip .r span:first-child{color:var(--ink-2);display:flex;align-items:center;gap:6px}
+.grid2{display:grid;grid-template-columns:1.25fr 1fr;gap:18px}
+
+.alloc{display:flex;flex-direction:column;gap:11px}
+.allocrow .top{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;margin-bottom:4px}
+.allocrow .top b{font-weight:500}
+.allocrow .top .v{color:var(--ink-2);font-variant-numeric:tabular-nums}
+.bar{height:7px;border-radius:4px;background:var(--surface-3);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:4px}
+
+.movers{display:flex;flex-direction:column}
+.mover{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--line)}
+.mover:last-child{border-bottom:0}
+.mover .tk{font-weight:600;font-size:12.5px;width:60px;flex:none}
+.mover .nm{color:var(--muted);font-size:11.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mover .val{font-variant-numeric:tabular-nums;font-size:12.5px;font-weight:500}
+.note{display:flex;gap:9px;align-items:flex-start;margin-top:14px;padding-top:13px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-2)}
+
+/* ---------- tables ---------- */
+.tscroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:660px}
+th{
+  text-align:left;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+  font-weight:600;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface-2)
+}
+td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.expander{display:flex;align-items:center;gap:8px;width:100%;text-align:left}
+.caret{width:14px;flex:none;color:var(--muted);transition:transform .15s ease;display:inline-block}
+.caret.open{transform:rotate(90deg)}
+.secname{display:flex;flex-direction:column;gap:1px;min-width:0}
+.secname b{font-weight:600;font-size:12.5px}
+.secname span{font-size:10.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lots{background:var(--surface-2)}
+.lots td{padding:0 12px 0 0}
+.lots table{min-width:0;font-size:11.5px}
+.lots th{background:transparent;font-size:9.5px;padding:7px 12px}
+.lots td{padding:6px 12px;border-bottom:1px solid var(--line)}
+.lots tr:last-child td{border-bottom:0}
+.fx{border-bottom:1px dotted var(--line-2);cursor:help}
+.w{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.w .bar{width:44px;flex:none}
+</style>
+<style>
+/* ---------- import ---------- */
+.stepper{display:flex;gap:0;flex-wrap:wrap;border-bottom:1px solid var(--line);background:var(--surface-2);border-radius:var(--r) var(--r) 0 0;overflow:hidden}
+.step{display:flex;align-items:center;gap:8px;padding:11px 16px;font-size:12px;color:var(--muted);position:relative;flex:1;min-width:132px}
+.step .n{width:19px;height:19px;border-radius:50%;border:1.5px solid var(--line-2);display:grid;place-items:center;font-size:10.5px;font-weight:700;flex:none}
+.step[data-state="done"]{color:var(--ink-2)}
+.step[data-state="done"] .n{background:var(--accent);border-color:var(--accent);color:#fff}
+.step[data-state="active"]{color:var(--ink);font-weight:600;background:var(--surface)}
+.step[data-state="active"] .n{border-color:var(--accent);color:var(--accent-ink)}
+.step+.step{border-left:1px solid var(--line)}
+.drop{
+  border:1.5px dashed var(--line-2);border-radius:var(--r);padding:30px 20px;text-align:center;
+  background:var(--surface-2);display:flex;flex-direction:column;align-items:center;gap:8px
+}
+.drop b{font-size:14px;font-weight:600}
+.drop p{margin:0;color:var(--muted);font-size:12px;max-width:46ch}
+.files{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.file{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:6px;padding:10px 12px;background:var(--surface);flex-wrap:wrap}
+.file .ic{width:28px;height:28px;border-radius:5px;background:var(--surface-3);display:grid;place-items:center;font-size:9px;font-weight:700;color:var(--ink-2);flex:none;letter-spacing:.02em}
+.file .meta{flex:1;min-width:150px}
+.file .meta b{display:block;font-size:12.5px;font-weight:500;word-break:break-all}
+.file .meta span{font-size:11px;color:var(--muted)}
+.prog{height:3px;border-radius:2px;background:var(--surface-3);overflow:hidden;margin-top:6px}
+.prog i{display:block;height:100%;background:var(--accent);border-radius:2px;transition:width .35s linear}
+select{
+  font:inherit;font-size:12px;color:var(--ink);background:var(--surface);border:1px solid var(--line-2);
+  border-radius:6px;padding:5px 8px;max-width:100%
+}
+.mapgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.rawprev{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;overflow-x:auto;font-size:11px;padding:10px}
+.rawprev pre{margin:0;font-family:"IBM Plex Mono",monospace;line-height:1.75;white-space:pre;color:var(--ink-2)}
+.maprow{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.maprow:last-child{border-bottom:0}
+.maprow label{font-size:12px;width:112px;flex:none;color:var(--ink-2)}
+.maprow select{flex:1;min-width:120px}
+.fmtprev{margin-top:12px;padding:10px 12px;border-radius:6px;background:var(--accent-wash);font-size:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{border:1px solid var(--line-2);border-radius:20px;padding:4px 11px;font-size:12px;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px}
+.tab:hover{background:var(--surface-3)}
+.tab[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink);font-weight:600}
+.tab .ct{font-variant-numeric:tabular-nums;opacity:.75}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.rtable td{vertical-align:top}
+.rtable tr[data-st="dup"] td{opacity:.62}
+.rtable tr[data-st="attn"]{background:var(--warn-chip)}
+input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;margin:1px 0 0}
+.issuerow td{padding-top:0}
+.issue{padding:11px 13px;border:1px solid var(--line-2);border-radius:6px;background:var(--surface);display:flex;flex-direction:column;gap:9px}
+.issue .cands{flex-direction:row;flex-wrap:wrap}
+.issue .cand{width:auto;flex:1 1 220px}
+.issue .hd{font-size:11.5px;color:var(--ink-2);display:flex;align-items:center;gap:7px}
+.cands{display:flex;flex-direction:column;gap:5px}
+.cand{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:5px;padding:6px 9px;text-align:left;width:100%;font-size:11.5px}
+.cand:hover{border-color:var(--accent);background:var(--accent-wash)}
+.cand b{font-weight:600}
+.cand .m{margin-left:auto;color:var(--muted);font-size:10.5px;white-space:nowrap}
+.kest{display:flex;gap:4px;flex-direction:column;align-items:flex-end;font-size:11px;color:var(--muted)}
+.commitbar{display:flex;align-items:center;gap:12px;padding:13px 16px;border-top:1px solid var(--line);background:var(--surface-2);flex-wrap:wrap;border-radius:0 0 var(--r) var(--r)}
+.done{display:flex;flex-direction:column;align-items:center;gap:6px;padding:34px 20px;text-align:center}
+.done .tick{width:40px;height:40px;border-radius:50%;background:var(--pos-chip);display:grid;place-items:center;color:var(--pos);margin-bottom:4px}
+.done b{font-size:16px;font-weight:600}
+.done p{margin:0;color:var(--ink-2);font-size:12.5px;max-width:50ch}
+.batches{display:flex;flex-direction:column}
+.batch{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;font-size:12.5px}
+.batch:last-child{border-bottom:0}
+.batch .bm{flex:1;min-width:160px}
+.batch .bm span{display:block;font-size:11px;color:var(--muted)}
+
+/* ---------- accounts / settings ---------- */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.acct{padding:15px 16px;display:flex;flex-direction:column;gap:3px}
+.acct .nm{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px}
+.acct .v{font-size:23px;font-weight:600;letter-spacing:-.02em;margin-top:5px;font-variant-numeric:tabular-nums}
+.acct .mt{font-size:11.5px;color:var(--muted);margin-top:7px;display:flex;flex-direction:column;gap:2px}
+.srow{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.srow:last-child{border-bottom:0}
+.srow .lab{width:190px;flex:none}
+.srow .lab b{display:block;font-size:12.5px;font-weight:500}
+.srow .lab span{font-size:11px;color:var(--muted)}
+.danger{border-color:var(--neg)!important}
+.danger .phead{border-color:var(--neg)}
+
+/* ---------- responsive ---------- */
+@media (max-width:900px){ .grid2{grid-template-columns:1fr} .mapgrid{grid-template-columns:1fr} }
+@media (max-width:760px){
+  .app{grid-template-columns:1fr}
+  .rail{
+    position:fixed;bottom:0;left:0;right:0;top:auto;height:auto;flex-direction:row;
+    border-right:0;border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));
+    z-index:40;justify-content:space-around;overflow-x:auto
+  }
+  .brand,.navhead{display:none}
+  .nav{flex-direction:column;gap:3px;font-size:10px;padding:5px 7px;text-align:center;min-width:56px}
+  .nav .badge{position:absolute;margin:0;transform:translate(15px,-4px)}
+  .nav{position:relative}
+  .main{padding-bottom:64px}
+  .topbar{padding:9px 16px}
+  .content{padding:16px}
+  .total{font-size:29px}
+  .stats{margin-left:0;gap:18px}
+  table{font-size:12px}
+}
+</style>
+<div class="app">
+  <nav class="rail" aria-label="Sections">
+    <div class="brand"><span class="mark"><span>DL</span></span><b>Depot&nbsp;Ledger</b></div>
+    <div class="navhead">Portfolio</div>
+    <button class="nav" data-view="dashboard" aria-current="page"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 11.5 6 7l3 2.5L14 4"/><path d="M2 14h12"/></svg>Dashboard</button>
+    <button class="nav" data-view="holdings"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 6.5h12M6 6.5V13"/></svg>Holdings</button>
+    <button class="nav" data-view="transactions"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5h10M3 5l2.5-2.5M13 11H3m10 0-2.5 2.5"/></svg>Transactions</button>
+    <div class="navhead">Data</div>
+    <button class="nav" data-view="import"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 10.5V2.5M8 2.5 5 5.5M8 2.5l3 3"/><path d="M2.5 10v2.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V10"/></svg>Import<span class="badge" id="navBadge">3</span></button>
+    <button class="nav" data-view="accounts"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="12" height="9" rx="1.5"/><path d="M2 7.5h12"/></svg>Accounts</button>
+    <button class="nav" data-view="settings"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v1.6M8 12.6v1.6M14.2 8h-1.6M3.4 8H1.8M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1M12.4 12.4l-1.1-1.1M4.7 4.7 3.6 3.6"/></svg>Settings</button>
+  </nav>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="pill" id="acctPill" title="Prototype: static control">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="12" height="9" rx="1.5"/></svg>
+        All accounts
+        <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="m4 6 4 4 4-4"/></svg>
+      </button>
+      <div class="seg" id="rangeSeg" role="group" aria-label="Time range"></div>
+      <div class="spacer"></div>
+      <span class="kbd" aria-hidden="true">⌘K</span>
+      <button class="pill" id="themeBtn" aria-label="Switch theme">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 9.4A5.4 5.4 0 0 1 6.6 3a5.5 5.5 0 1 0 6.4 6.4Z"/></svg>
+        <span id="themeLabel">Dark</span>
+      </button>
+    </header>
+    <main class="content" id="view"></main>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============================ demo data ============================ */
+const EUR = n => "€" + n.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2});
+const EUR0 = n => "€" + n.toLocaleString("de-DE",{maximumFractionDigits:0});
+const PCT = n => (n>=0?"+":"−") + Math.abs(n).toFixed(1) + "%";
+const SIGN = n => (n>=0?"▲":"▼");
+const money = n => (n<0?"−":"") + "€" + Math.abs(n).toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2});
+const moneyS = n => (n<0?"−":"+") + "€" + Math.abs(n).toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2});
+
+const HOLDINGS = [
+  {tk:"VWCE", name:"Vanguard FTSE All-World UCITS ETF Acc", isin:"IE00BK5BQT80", cls:"Equity ETF", acct:"flatex.at · DADAT",
+   qty:412, avg:102.62, px:128.90, ccy:"EUR", cost:42278.20, val:53106.80, day:0.40, dayAbs:214,
+   lots:[
+     {d:"01.02.2021",q:60,c:88.20,a:"flatex.at"},{d:"02.08.2021",q:55,c:96.40,a:"flatex.at"},
+     {d:"01.03.2022",q:70,c:92.15,a:"flatex.at"},{d:"02.01.2023",q:85,c:101.30,a:"DADAT"},
+     {d:"02.04.2024",q:72,c:112.85,a:"DADAT"},{d:"02.06.2025",q:70,c:121.40,a:"DADAT"}]},
+  {tk:"EUNL", name:"iShares Core MSCI World UCITS ETF", isin:"IE00B4L5Y983", cls:"Equity ETF", acct:"flatex.at",
+   qty:285, avg:78.04, px:95.62, ccy:"EUR", cost:22241.25, val:27251.70, day:0.59, dayAbs:159,
+   lots:[{d:"15.03.2021",q:120,c:64.80,a:"flatex.at"},{d:"11.10.2022",q:85,c:71.45,a:"flatex.at"},{d:"08.05.2024",q:80,c:104.90,a:"flatex.at"}]},
+  {tk:"ASML", name:"ASML Holding NV", isin:"NL0010273215", cls:"Single stock", acct:"flatex.at",
+   qty:38, avg:610.17, px:702.10, ccy:"EUR", cost:23186.40, val:26679.80, day:3.10, dayAbs:802,
+   lots:[{d:"22.06.2022",q:20,c:512.40,a:"flatex.at"},{d:"18.08.2026",q:18,c:718.80,a:"flatex.at"}]},
+  {tk:"SAP", name:"SAP SE", isin:"DE0007164600", cls:"Single stock", acct:"DADAT",
+   qty:95, avg:148.30, px:236.40, ccy:"EUR", cost:14088.50, val:22458.00, day:1.40, dayAbs:310,
+   lots:[{d:"04.11.2022",q:95,c:148.30,a:"DADAT"}]},
+  {tk:"NOVO B", name:"Novo Nordisk A/S B", isin:"DK0060534915", cls:"Single stock", acct:"DADAT",
+   qty:210, avg:108.85, px:99.81, ccy:"DKK", nativePx:744.50, nativeCcy:"DKK", fx:7.4590, fxDate:"19.09.2026",
+   cost:22858.50, val:20960.45, day:-0.90, dayAbs:-190,
+   lots:[{d:"09.01.2023",q:120,c:101.20,a:"DADAT"},{d:"14.02.2025",q:90,c:119.05,a:"DADAT"}]},
+  {tk:"OMV", name:"OMV AG", isin:"AT0000743059", cls:"Single stock", acct:"flatex.at",
+   qty:340, avg:41.85, px:46.12, ccy:"EUR", cost:14228.40, val:15680.80, day:0.44, dayAbs:68,
+   lots:[{d:"03.02.2022",q:200,c:38.90,a:"flatex.at"},{d:"27.09.2023",q:140,c:46.06,a:"flatex.at"}]},
+  {tk:"AGGH", name:"iShares Core Global Aggregate Bond UCITS ETF", isin:"IE00BDBRDM35", cls:"Bond ETF", acct:"DADAT",
+   qty:2400, avg:4.92, px:5.08, ccy:"EUR", cost:11808.00, val:12192.00, day:0.08, dayAbs:10, stale:"19.09.2026",
+   lots:[{d:"12.01.2024",q:2400,c:4.92,a:"DADAT"}]},
+  {tk:"VOE", name:"voestalpine AG", isin:"AT0000937503", cls:"Single stock", acct:"flatex.at",
+   qty:260, avg:27.40, px:24.68, ccy:"EUR", cost:7124.00, val:6416.80, day:-2.40, dayAbs:-158,
+   lots:[{d:"19.05.2023",q:260,c:27.40,a:"flatex.at"}]},
+];
+const CASH = 5431.82;
+const SEC_VAL = HOLDINGS.reduce((s,h)=>s+h.val,0);
+const TOTAL = SEC_VAL + CASH;
+const COST = HOLDINGS.reduce((s,h)=>s+h.cost,0);
+const CONTRIB = 148500;
+const DAY_ABS = 1204.55, DAY_PCT = 0.64;
+
+const ALLOC = [
+  {k:"Equity ETF",    v:HOLDINGS.filter(h=>h.cls==="Equity ETF").reduce((s,h)=>s+h.val,0), c:"var(--c1)"},
+  {k:"Single stocks", v:HOLDINGS.filter(h=>h.cls==="Single stock").reduce((s,h)=>s+h.val,0), c:"var(--c2)"},
+  {k:"Bond ETF",      v:HOLDINGS.filter(h=>h.cls==="Bond ETF").reduce((s,h)=>s+h.val,0), c:"var(--c3)"},
+  {k:"Cash",          v:CASH, c:"var(--c4)"},
+];
+
+const ACCOUNTS = [
+  {n:"flatex.at",  t:"Depot",             ccy:"EUR", v:129135.90, tx:412, last:"21.09.2026 · flatex_Transaktionen_2026-Q3.csv"},
+  {n:"DADAT",      t:"Depot",             ccy:"EUR", v:55610.45,  tx:268, last:"21.09.2026 · Parqet-Export"},
+  {n:"flatex.at",  t:"Verrechnungskonto", ccy:"EUR", v:CASH,      tx:96,  last:"21.09.2026 · flatex_Transaktionen_2026-Q3.csv"},
+];
+
+const LEDGER = [
+  {d:"08.09.2026",a:"flatex.at",t:"TAX",     lbl:"Ausschüttungsgleiche Erträge", s:"VWCE",  q:"",        p:"",      f:"0,00", x:"48,20", n:-48.20},
+  {d:"02.09.2026",a:"DADAT",    t:"BUY",     lbl:"Sparplan Kauf",  s:"VWCE",   q:"12,4000", p:"121,84", f:"1,50", x:"0,00",  n:-1512.30},
+  {d:"18.08.2026",a:"flatex.at",t:"BUY",     lbl:"Kauf",           s:"ASML",   q:"2",       p:"702,10", f:"5,90", x:"0,00",  n:-1410.10},
+  {d:"12.08.2026",a:"DADAT",    t:"DIVIDEND",lbl:"Dividende",      s:"NOVO B", q:"",        p:"",      f:"0,00", x:"36,12", n:95.24},
+  {d:"05.08.2026",a:"DADAT",    t:"DIVIDEND",lbl:"Dividende",      s:"SAP",    q:"",        p:"",      f:"0,00", x:"60,09", n:158.41},
+  {d:"01.08.2026",a:"DADAT",    t:"BUY",     lbl:"Sparplan Kauf",  s:"VWCE",   q:"11,8000", p:"128,03", f:"1,50", x:"0,00",  n:-1512.30},
+  {d:"15.07.2026",a:"flatex.at",t:"SELL",    lbl:"Verkauf",        s:"VOE",    q:"40",      p:"25,31",  f:"5,90", x:"0,00",  n:1006.50},
+  {d:"04.07.2026",a:"flatex.at",t:"DIVIDEND",lbl:"Dividende",      s:"OMV",    q:"",        p:"",      f:"0,00", x:"39,05", n:102.95},
+  {d:"02.07.2026",a:"DADAT",    t:"BUY",     lbl:"Sparplan Kauf",  s:"VWCE",   q:"12,4831", p:"121,03", f:"1,50", x:"0,00",  n:-1512.30},
+  {d:"30.06.2026",a:"flatex.at",t:"DEPOSIT", lbl:"Einzahlung",     s:"",       q:"",        p:"",      f:"0,00", x:"0,00",  n:3000.00},
+  {d:"12.06.2026",a:"flatex.at",t:"FEE",     lbl:"Depotgebühr",    s:"",       q:"",        p:"",      f:"0,00", x:"0,00",  n:-11.90},
+  {d:"02.06.2026",a:"DADAT",    t:"BUY",     lbl:"Sparplan Kauf",  s:"VWCE",   q:"12,2100", p:"123,86", f:"1,50", x:"0,00",  n:-1512.30},
+];
+</script>
+<script>
+"use strict";
+/* ===================== weekly value / contribution series ===================== */
+const ANCHORS = [
+  ["2021-01-04",12000,12150],["2021-04-05",18000,19100],["2021-07-05",24000,26200],["2021-10-04",30000,32900],
+  ["2022-01-03",36500,38200],["2022-04-04",43000,40900],["2022-07-04",49500,42500],["2022-10-03",56000,47000],
+  ["2023-01-02",62500,58500],["2023-04-03",69000,68900],["2023-07-03",75500,77400],["2023-10-02",82000,81300],
+  ["2024-01-01",88500,94600],["2024-04-01",95000,104200],["2024-07-01",101500,112800],["2024-09-30",108000,119400],
+  ["2025-01-06",114500,128900],["2025-04-07",121000,130200],["2025-07-07",128000,148600],["2025-10-06",134500,157300],
+  ["2026-01-05",141000,168400],["2026-04-06",145500,174900],["2026-07-06",147500,185200],["2026-09-21",CONTRIB,TOTAL],
+];
+const SERIES = (() => {
+  const A = ANCHORS.map(([d,c,v]) => [new Date(d+"T00:00:00Z").getTime(), c, v]);
+  const out = [], WK = 7*864e5, end = A[A.length-1][0];
+  let t = A[0][0], i = 0, k = 0;
+  while (t <= end) {
+    while (i < A.length-2 && t > A[i+1][0]) i++;
+    const [t0,c0,v0] = A[i], [t1,c1,v1] = A[i+1];
+    const f = Math.min(1,Math.max(0,(t-t0)/(t1-t0)));
+    const jitter = 1 + 0.013*Math.sin(k*1.71) + 0.008*Math.sin(k*0.53+1.2) + 0.005*Math.sin(k*3.1);
+    out.push({t, c: Math.round((c0+(c1-c0)*f)/50)*50, v: (v0+(v1-v0)*f)*jitter});
+    t += WK; k++;
+  }
+  const last = A[A.length-1];
+  out.push({t:last[0], c:last[1], v:last[2]});
+  return out;
+})();
+
+const RANGES = [
+  {k:"1M",  d:31},  {k:"6M", d:183}, {k:"YTD", ytd:true},
+  {k:"1J",  d:365}, {k:"5J", d:1826}, {k:"MAX", all:true},
+];
+const NOW = SERIES[SERIES.length-1].t;
+function sliceSeries(r){
+  if (r.all) return SERIES;
+  const from = r.ytd ? new Date("2026-01-01T00:00:00Z").getTime() : NOW - r.d*864e5;
+  const s = SERIES.filter(p => p.t >= from);
+  return s.length > 2 ? s : SERIES.slice(-3);
+}
+const fmtDate = t => new Date(t).toLocaleDateString("de-DE",{day:"2-digit",month:"short",year:"numeric"});
+
+/* ============================== chart ============================== */
+function drawChart(host, pts){
+  const W = Math.max(300, host.clientWidth), H = W < 520 ? 190 : 250;
+  const padL = W < 520 ? 44 : 56, padR = 14, padT = 14, padB = 24;
+  const iw = W - padL - padR, ih = H - padT - padB;
+  const vals = pts.flatMap(p => [p.v, p.c]);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  const pad = (hi - lo) * 0.12 || 1; lo = Math.max(0, lo - pad); hi = hi + pad;
+  const raw = (hi - lo) / 4, mag = Math.pow(10, Math.floor(Math.log10(raw))), nrm = raw / mag;
+  const step = (nrm <= 1 ? 1 : nrm <= 2 ? 2 : nrm <= 2.5 ? 2.5 : nrm <= 5 ? 5 : 10) * mag;
+  lo = Math.max(0, Math.floor(lo / step) * step); hi = Math.ceil(hi / step) * step;
+  const X = i => padL + (i/(pts.length-1))*iw;
+  const Y = v => padT + ih - ((v - lo)/(hi - lo))*ih;
+  const tickLabel = v => v >= 1000
+    ? "€" + (v/1000).toLocaleString("de-DE",{maximumFractionDigits:1}) + "k"
+    : "€" + v.toLocaleString("de-DE",{maximumFractionDigits:0});
+
+  const line = key => pts.map((p,i) => (i?"L":"M") + X(i).toFixed(1) + " " + Y(p[key]).toFixed(1)).join(" ");
+  const area = key => line(key) + ` L ${X(pts.length-1).toFixed(1)} ${(padT+ih).toFixed(1)} L ${padL} ${(padT+ih).toFixed(1)} Z`;
+
+  const gy = [];
+  for (let v = lo; v <= hi + step/2; v += step){
+    gy.push(`<line x1="${padL}" y1="${Y(v).toFixed(1)}" x2="${W-padR}" y2="${Y(v).toFixed(1)}" stroke="var(--line)" stroke-width="1"/>
+      <text x="${padL-8}" y="${(Y(v)+3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${tickLabel(v)}</text>`);
+  }
+  const years = new Map();
+  pts.forEach((p,i) => { const y = new Date(p.t).getUTCFullYear(); if(!years.has(y)) years.set(y,i); });
+  const spanDays = (pts[pts.length-1].t - pts[0].t)/864e5;
+  let gx = "";
+  if (spanDays > 400){
+    gx = [...years].slice(spanDays > 1500 ? 0 : 1).map(([y,i]) =>
+      `<text x="${X(i).toFixed(1)}" y="${H-6}" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${y}</text>`).join("");
+  } else {
+    gx = [0, Math.floor(pts.length/2), pts.length-1].map(i =>
+      `<text x="${X(i).toFixed(1)}" y="${H-6}" text-anchor="${i===0?"start":i===pts.length-1?"end":"middle"}" font-size="10" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${new Date(pts[i].t).toLocaleDateString("de-DE",{month:"short",year:"2-digit"})}</text>`).join("");
+  }
+  const lastX = X(pts.length-1), lastY = Y(pts[pts.length-1].v);
+
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img"
+      aria-label="Portfolio value against net contributions, ${fmtDate(pts[0].t)} to ${fmtDate(pts[pts.length-1].t)}">
+    ${gy.join("")}
+    <path d="${area("c")}" fill="var(--band-fill)"/>
+    <path d="${line("c")}" fill="none" stroke="var(--band)" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <path d="${area("v")}" fill="var(--accent-wash)"/>
+    <path d="${line("v")}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>
+    <g id="cross" opacity="0">
+      <line y1="${padT}" y2="${padT+ih}" stroke="var(--line-2)" stroke-width="1"/>
+      <circle r="4.5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>
+      <circle r="3.5" fill="var(--band)" stroke="var(--surface)" stroke-width="2"/>
+    </g>
+    ${gx}
+  </svg>`;
+  return {X,Y,pts,padL,iw,W,H};
+}
+
+function wireChart(host, tip, geo){
+  const svg = host.querySelector("svg"), cross = svg.querySelector("#cross");
+  const [vline, vdot, cdot] = [cross.children[0], cross.children[1], cross.children[2]];
+  const move = e => {
+    const r = svg.getBoundingClientRect();
+    const px = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+    const x = px * (geo.W / r.width);
+    let i = Math.round(((x - geo.padL)/geo.iw) * (geo.pts.length-1));
+    i = Math.max(0, Math.min(geo.pts.length-1, i));
+    const p = geo.pts[i], cx = geo.X(i);
+    cross.setAttribute("opacity","1");
+    vline.setAttribute("x1",cx); vline.setAttribute("x2",cx);
+    vdot.setAttribute("cx",cx); vdot.setAttribute("cy",geo.Y(p.v));
+    cdot.setAttribute("cx",cx); cdot.setAttribute("cy",geo.Y(p.c));
+    const gain = p.v - p.c;
+    tip.hidden = false;
+    tip.innerHTML = `<div class="t">${fmtDate(p.t)}</div>
+      <div class="r"><span><i class="sw" style="background:var(--accent)"></i>Value</span><b>${EUR(p.v)}</b></div>
+      <div class="r"><span><i class="sw" style="background:var(--band)"></i>Contributed</span><b>${EUR(p.c)}</b></div>
+      <div class="r" style="margin-top:4px;padding-top:4px;border-top:1px solid var(--line)"><span>Gain</span><b class="${gain>=0?"pos":"neg"}">${money(gain)}</b></div>`;
+    const left = Math.min(Math.max(8, (cx/geo.W)*r.width - tip.offsetWidth/2), r.width - tip.offsetWidth - 8);
+    tip.style.left = left + "px"; tip.style.top = "6px";
+  };
+  const leave = () => { cross.setAttribute("opacity","0"); tip.hidden = true; };
+  svg.addEventListener("mousemove", move);
+  svg.addEventListener("mouseleave", leave);
+  svg.addEventListener("touchstart", move, {passive:true});
+  svg.addEventListener("touchmove", move, {passive:true});
+  svg.addEventListener("touchend", leave);
+}
+
+function spark(tk, up){
+  let seed = 0; for (const ch of tk) seed += ch.charCodeAt(0);
+  const n = 26, pts = [];
+  for (let i = 0; i < n; i++){
+    const drift = (up ? 1 : -1) * (i/n) * 9;
+    pts.push(50 - drift + 6*Math.sin(i*0.9 + seed) + 3.5*Math.sin(i*2.3 + seed*0.7));
+  }
+  const lo = Math.min(...pts), hi = Math.max(...pts);
+  const d = pts.map((v,i) => (i?"L":"M") + (i/(n-1)*70+1).toFixed(1) + " " + (20 - ((v-lo)/((hi-lo)||1))*18 + 1).toFixed(1)).join(" ");
+  return `<svg width="72" height="22" viewBox="0 0 72 22" aria-hidden="true"><path d="${d}" fill="none"
+    stroke="${up?"var(--pos)":"var(--neg)"}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+</script>
+<script>
+"use strict";
+/* ============================== import data ============================== */
+const FILES = [
+  {n:"parqet-export-2026-09-21.csv", ext:"CSV", rows:"1.204 rows", adapter:"parqet-csv", src:"Parqet", conf:99,
+   note:"Full history across both depots — the migration import"},
+  {n:"flatex_Transaktionen_2026-Q3.csv", ext:"CSV", rows:"14 rows", adapter:"flatex-at-csv", src:"flatex.at", conf:96,
+   note:"Windows-1252 · semicolon · DD.MM.YYYY"},
+  {n:"DADAT_Umsatzliste_092026.xlsx", ext:"XLSX", rows:"18 rows", adapter:null, src:"Unrecognised", conf:0,
+   note:"No matching profile — needs a column mapping"},
+];
+const REVIEW = [
+  {i:1, d:"02.07.2026", t:"BUY", lbl:"Sparplan Kauf", s:"VWCE", isin:"IE00BK5BQT80", q:"12,4831", gr:"1.510,80", tax:"", net:"−1.512,30", st:"new"},
+  {i:2, d:"04.07.2026", t:"DIVIDEND", lbl:"Dividende", s:"OMV", isin:"AT0000743059", q:"", gr:"142,00", tax:"39,05", net:"102,95", st:"new"},
+  {i:3, d:"09.07.2026", t:"BUY", lbl:"Kauf", s:"???", isin:"US0378331005", q:"5", gr:"880,00", tax:"", net:"−880,00", st:"attn", fix:"isin",
+   issue:"No security matches ISIN US0378331005"},
+  {i:4, d:"15.07.2026", t:"SELL", lbl:"Verkauf", s:"VOE", isin:"AT0000937503", q:"40", gr:"1.012,40", tax:"", net:"1.006,50", st:"dup",
+   issue:"Already imported · Parqet batch, 21.09.2026"},
+  {i:5, d:"01.08.2026", t:"BUY", lbl:"Sparplan Kauf", s:"VWCE", isin:"IE00BK5BQT80", q:"11,8000", gr:"1.510,80", tax:"", net:"−1.512,30", st:"new"},
+  {i:6, d:"05.08.2026", t:"DIVIDEND", lbl:"Dividende", s:"SAP", isin:"DE0007164600", q:"", gr:"218,50", tax:"60,09", net:"158,41", st:"new"},
+  {i:7, d:"12.08.2026", t:"DIVIDEND", lbl:"Dividende", s:"NOVO B", isin:"DK0060534915", q:"", gr:"kr 980,00", tax:"kr 264,60", net:"—", st:"attn", fix:"fx",
+   issue:"No DKK→EUR rate cached for 12.08.2026 — net amount cannot be converted"},
+  {i:8, d:"18.08.2026", t:"BUY", lbl:"Kauf", s:"ASML", isin:"NL0010273215", q:"2", gr:"1.404,20", tax:"", net:"−1.410,10", st:"dup",
+   issue:"Already imported · Parqet batch, 21.09.2026"},
+  {i:9, d:"02.09.2026", t:"BUY", lbl:"Sparplan Kauf", s:"VWCE", isin:"IE00BK5BQT80", q:"12,4000", gr:"1.510,80", tax:"", net:"−1.512,30", st:"new"},
+  {i:10, d:"08.09.2026", t:"TAX", lbl:"Ausschüttungsgleiche Erträge", s:"VWCE", isin:"IE00BK5BQT80", q:"", gr:"48,20", tax:"48,20", net:"−48,20", st:"attn", fix:"age",
+   issue:"Austrian accumulating-fund tax — v1 does not interpret these"},
+  {i:11, d:"12.09.2026", t:"FEE", lbl:"Depotgebühr", s:"", isin:"", q:"", gr:"11,90", tax:"", net:"−11,90", st:"new"},
+  {i:12, d:"15.09.2026", t:"DEPOSIT", lbl:"Einzahlung", s:"", isin:"", q:"", gr:"3.000,00", tax:"", net:"3.000,00", st:"dup",
+   issue:"Already imported · Parqet batch, 21.09.2026"},
+  {i:13, d:"18.09.2026", t:"BUY", lbl:"Kauf", s:"OMV", isin:"AT0000743059", q:"60", gr:"2.763,00", tax:"", net:"−2.768,90", st:"new"},
+  {i:14, d:"19.09.2026", t:"DIVIDEND", lbl:"Dividende", s:"VWCE", isin:"IE00BK5BQT80", q:"", gr:"96,40", tax:"26,51", net:"69,89", st:"new"},
+];
+const CANDIDATES = [
+  {n:"Apple Inc.", tk:"AAPL", ex:"NASDAQ", ccy:"USD", m:98},
+  {n:"Apple Inc.", tk:"APC", ex:"Xetra", ccy:"EUR", m:91},
+];
+const BATCHES = [
+  {n:"parqet-export-2026-09-21.csv", src:"Parqet", when:"21.09.2026 · 18:04", stat:"1.204 transactions · 2 accounts · 11 securities"},
+  {n:"DADAT_Umsatzliste_062026.xlsx", src:"DADAT · saved profile", when:"04.07.2026 · 09:12", stat:"21 transactions"},
+  {n:"flatex_Transaktionen_2026-Q2.csv", src:"flatex.at", when:"04.07.2026 · 09:05", stat:"17 transactions"},
+];
+
+/* ============================== state ============================== */
+const S = {
+  view:"dashboard", range:"MAX", step:1, filter:"all",
+  open:new Set(), rows:REVIEW.map(r => ({...r, on: r.st === "new"})), committed:0, parse:0,
+};
+const el = document.getElementById("view");
+const statusMeta = {
+  new:{c:"var(--c3)", label:"New", chip:"pos"},
+  dup:{c:"var(--band)", label:"Duplicate", chip:"neutral"},
+  attn:{c:"var(--c4)", label:"Needs attention", chip:"warn"},
+};
+const counts = () => ({
+  all:S.rows.length,
+  new:S.rows.filter(r=>r.st==="new").length,
+  dup:S.rows.filter(r=>r.st==="dup").length,
+  attn:S.rows.filter(r=>r.st==="attn").length,
+  on:S.rows.filter(r=>r.on).length,
+});
+
+/* ============================== views ============================== */
+function vDashboard(){
+  const r = RANGES.find(x=>x.k===S.range), pts = sliceSeries(r);
+  const p0 = pts[0], p1 = pts[pts.length-1];
+  const rangeGain = (p1.v - p0.v) - (p1.c - p0.c);
+  const rangePct = rangeGain / ((p0.v + (p1.c - p0.c)) || 1) * 100;
+  const totalGain = TOTAL - CONTRIB;
+  const movers = [...HOLDINGS].sort((a,b)=>Math.abs(b.dayAbs)-Math.abs(a.dayAbs)).slice(0,5);
+  const allocTotal = ALLOC.reduce((s,a)=>s+a.v,0);
+
+  return `
+  <div class="panel hero">
+    <div class="herotop">
+      <div>
+        <div class="totlabel">Total value</div>
+        <div class="total num">${EUR(TOTAL)}</div>
+        <div class="totrow">
+          <span class="chip pos">${SIGN(DAY_ABS)} ${money(DAY_ABS)} · ${PCT(DAY_PCT)}</span>
+          <span style="font-size:12px;color:var(--muted)">today</span>
+          <span class="stale" title="One position's price is older than the last trading day">1 price as of 19 Sep</span>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="k">Net invested</div><div class="v">${EUR(CONTRIB)}</div></div>
+        <div class="stat"><div class="k">Total gain</div><div class="v pos">${money(totalGain)}</div></div>
+        <div class="stat"><div class="k">Return · ${S.range}</div><div class="v ${rangeGain>=0?"pos":"neg"}">${PCT(rangePct)}</div></div>
+        <div class="stat"><div class="k">TWR p.a. · since 2021</div><div class="v">+9,4 %</div></div>
+      </div>
+    </div>
+    <div class="chartwrap" id="chartwrap"><div id="chart"></div><div class="tip" id="tip" hidden></div></div>
+    <div class="legend">
+      <span class="lg"><i class="sw" style="background:var(--accent)"></i>Portfolio value</span>
+      <span class="lg"><i class="sw" style="background:var(--band)"></i>Net contributions (deposits − withdrawals)</span>
+      <span class="lg" style="color:var(--muted)">The gap between them is your investment gain.</span>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <div class="phead"><h2>Allocation</h2><span class="sub">by asset class</span></div>
+      <div class="pbody alloc">
+        ${ALLOC.map(a=>`
+          <div class="allocrow">
+            <div class="top"><b>${a.k}</b><span class="v">${EUR0(a.v)} · ${(a.v/allocTotal*100).toFixed(1)} %</span></div>
+            <div class="bar"><i style="width:${(a.v/allocTotal*100).toFixed(1)}%;background:${a.c}"></i></div>
+          </div>`).join("")}
+      </div>
+    </div>
+    <div class="panel">
+      <div class="phead"><h2>Movers today</h2><span class="sub">21 Sep 2026</span></div>
+      <div class="pbody">
+        <div class="movers">
+          ${movers.map(h=>`
+            <div class="mover">
+              <span class="tk">${h.tk}</span>
+              <span class="nm">${h.name}</span>
+              <span class="val ${h.day>=0?"pos":"neg"}">${SIGN(h.day)} ${PCT(h.day)}</span>
+              <span class="val ${h.dayAbs>=0?"pos":"neg"}" style="width:76px;text-align:right">${moneyS(h.dayAbs)}</span>
+            </div>`).join("")}
+        </div>
+        <div class="note">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="flex:none;margin-top:1px;color:var(--muted)"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 2v2.5M10.5 2v2.5"/></svg>
+          <div>Next dividend <b>VWCE</b>, 12 Oct — est. <b class="num">€96,40</b> gross, <b class="num">€69,89</b> after 27,5 % KESt.</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function vHoldings(){
+  return `
+  <div>
+    <h1>Holdings</h1>
+    <p class="lede">Every figure traces back to the lots beneath it — open a row to see the buys that set its average cost.</p>
+  </div>
+  <div class="panel">
+    <div class="phead"><h2>${HOLDINGS.length} positions</h2><span class="sub">${EUR(SEC_VAL)} in securities · ${EUR(CASH)} cash</span></div>
+    <div class="tscroll">
+      <table>
+        <thead><tr>
+          <th style="width:30%">Security</th><th class="r">Qty</th><th class="r">Avg cost</th><th class="r">Price</th>
+          <th class="r">Value</th><th class="r">Gain</th><th style="width:60px">30 d</th><th class="r">Weight</th>
+        </tr></thead>
+        <tbody>
+          ${HOLDINGS.map(h => {
+            const gain = h.val - h.cost, pct = gain / h.cost * 100, open = S.open.has(h.tk);
+            const w = h.val / TOTAL * 100;
+            return `<tr>
+              <td><button class="expander" data-lot="${h.tk}" aria-expanded="${open}">
+                    <span class="caret ${open?"open":""}">▸</span>
+                    <span class="secname"><b>${h.tk}</b><span class="mono">${h.isin} · ${h.acct}</span></span>
+                  </button></td>
+              <td class="r num">${h.qty.toLocaleString("de-DE")}</td>
+              <td class="r num">${EUR(h.avg)}</td>
+              <td class="r num">${h.nativePx
+                    ? `<span class="fx" title="kr ${h.nativePx.toLocaleString("de-DE",{minimumFractionDigits:2})} × 1 / ${h.fx} (ECB, ${h.fxDate})">kr ${h.nativePx.toLocaleString("de-DE",{minimumFractionDigits:2})}</span>`
+                    : EUR(h.px)}${h.stale?` <span class="stale">19 Sep</span>`:""}</td>
+              <td class="r num">${EUR(h.val)}</td>
+              <td class="r num ${gain>=0?"pos":"neg"}">${SIGN(gain)} ${PCT(pct)}<br><span style="font-size:11px;opacity:.85">${money(gain)}</span></td>
+              <td>${spark(h.tk, gain>=0)}</td>
+              <td class="r"><div class="w"><span class="num">${w.toFixed(1)} %</span><span class="bar" style="width:44px"><i style="width:${(w/30*100).toFixed(0)}%;background:var(--accent)"></i></span></div></td>
+            </tr>
+            ${open ? `<tr class="lots"><td colspan="8">
+              <table><thead><tr><th>Lot acquired</th><th>Account</th><th class="r">Qty</th><th class="r">Cost / unit</th><th class="r">Cost basis</th><th class="r">Unrealised</th></tr></thead>
+              <tbody>${h.lots.map(l=>{
+                const lg = (h.px - l.c) * l.q, lp = (h.px/l.c - 1)*100;
+                return `<tr><td class="mono">${l.d}</td><td>${l.a}</td><td class="r num">${l.q.toLocaleString("de-DE")}</td>
+                  <td class="r num">${EUR(l.c)}</td><td class="r num">${EUR(l.c*l.q)}</td>
+                  <td class="r num ${lg>=0?"pos":"neg"}">${money(lg)} · ${PCT(lp)}</td></tr>`;}).join("")}
+              </tbody></table></td></tr>` : ""}`;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function vTransactions(){
+  const chip = t => ({BUY:"info",SELL:"info",DIVIDEND:"pos",TAX:"warn",FEE:"neutral",DEPOSIT:"neutral"})[t] || "neutral";
+  return `
+  <div>
+    <h1>Transactions</h1>
+    <p class="lede">The ledger. Imported rows keep the broker's own wording alongside the canonical type, so a German export stays auditable.</p>
+  </div>
+  <div class="panel">
+    <div class="phead"><h2>776 transactions</h2><span class="sub">showing the 12 most recent</span>
+      <div class="spacer"></div><button class="btn">Export CSV</button><button class="btn primary">Add transaction</button></div>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Date</th><th>Account</th><th>Type</th><th>Security</th><th class="r">Qty</th><th class="r">Price</th><th class="r">Fee</th><th class="r">KESt</th><th class="r">Net</th></tr></thead>
+        <tbody>${LEDGER.map(t=>`
+          <tr>
+            <td class="mono">${t.d}</td>
+            <td>${t.a}</td>
+            <td><span class="chip ${chip(t.t)}">${t.t}</span><br><span style="font-size:10.5px;color:var(--muted)">${t.lbl}</span></td>
+            <td><b>${t.s||"—"}</b></td>
+            <td class="r num">${t.q||"—"}</td>
+            <td class="r num">${t.p?"€"+t.p:"—"}</td>
+            <td class="r num">${t.f==="0,00"?"—":"€"+t.f}</td>
+            <td class="r num">${t.x==="0,00"?"—":"€"+t.x}</td>
+            <td class="r num ${t.n>=0?"pos":""}">${money(t.n)}</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+</script>
+<script>
+"use strict";
+/* ============================== import view ============================== */
+const STEPS = ["Drop files","Detect source","Map columns","Review","Commit"];
+
+function stepper(){
+  return `<div class="stepper">${STEPS.map((s,i)=>{
+    const n = i+1, state = S.step===n ? "active" : S.step>n ? "done" : "todo";
+    return `<button class="step" data-step="${n}" data-state="${state}">
+      <span class="n">${S.step>n?"✓":n}</span>${s}</button>`;}).join("")}</div>`;
+}
+
+function vImport(){
+  const c = counts();
+  let body = "";
+
+  if (S.step === 1){
+    body = `<div class="pbody">
+      <div class="drop">
+        <svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="var(--muted)" stroke-width="1.3"><path d="M8 11V2.5M8 2.5 5 5.5M8 2.5l3 3"/><path d="M2.5 10.5V13a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-2.5"/></svg>
+        <b>Drop broker exports here</b>
+        <p>CSV, XLSX and PDF. Files upload straight to storage, so a full Parqet history is no different from a single statement.</p>
+        <button class="btn">Choose files</button>
+      </div>
+      <div class="files">
+        ${FILES.map(f=>`<div class="file">
+          <span class="ic">${f.ext}</span>
+          <span class="meta"><b>${f.n}</b><span>${f.rows} · ${f.note}</span></span>
+          <span class="chip ${f.adapter?"info":"warn"}">${f.adapter ? f.src : "Needs mapping"}</span>
+        </div>`).join("")}
+      </div>
+      <div class="note" style="border-top:0;margin-top:14px;padding-top:0">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="flex:none;margin-top:1px;color:var(--muted)"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v4M8 5h.01"/></svg>
+        <div>Each file is hashed on arrival. Re-dropping one you have already imported is caught here, before anything is parsed.</div>
+      </div>
+    </div>
+    <div class="commitbar"><span style="font-size:12px;color:var(--muted)">3 files · 1.236 rows</span>
+      <div class="spacer"></div><button class="btn primary" data-go="2">Detect sources</button></div>`;
+  }
+
+  if (S.step === 2){
+    body = `<div class="pbody">
+      <div class="files" style="margin-top:0">
+        ${FILES.map((f,i)=>{
+          const pc = Math.min(100, Math.max(0, (S.parse - i*18) * 2.2));
+          const done = pc >= 100;
+          return `<div class="file">
+            <span class="ic">${f.ext}</span>
+            <span class="meta"><b>${f.n}</b>
+              <span>${f.adapter
+                ? `<span class="mono">${f.adapter}</span> · ${f.conf}% confidence`
+                : "No adapter matched — map the columns once and it becomes a saved profile"}</span>
+              ${f.adapter ? `<span class="prog"><i style="width:${pc}%"></i></span>` : ""}
+            </span>
+            ${f.adapter
+              ? `<span class="chip ${done?"pos":"neutral"}">${done ? "✓ " + f.rows.replace(" rows"," rows parsed") : "Parsing… " + Math.round(pc) + "%"}</span>
+                 <select aria-label="Adapter for ${f.n}">
+                   <option>${f.src}</option><option>Parqet</option><option>flatex.at</option><option>DADAT</option><option>Generic CSV/XLSX</option>
+                 </select>`
+              : `<button class="btn" data-go="3">Map columns →</button>`}
+          </div>`;}).join("")}
+      </div>
+    </div>
+    <div class="commitbar">
+      <span style="font-size:12px;color:var(--muted)">Parsing runs in the background — you can leave this page and come back.</span>
+      <div class="spacer"></div><button class="btn" data-go="1">Back</button><button class="btn primary" data-go="3">Continue</button></div>`;
+  }
+
+  if (S.step === 3){
+    body = `<div class="pbody">
+      <div class="mapgrid">
+        <div>
+          <div class="phead" style="padding:0 0 10px;border:0"><h2>DADAT_Umsatzliste_092026.xlsx</h2><span class="sub">first 4 rows</span></div>
+          <div class="rawprev"><pre>Buchungstag;Valuta;Text;ISIN;Stück;Kurs;Spesen;KESt;Betrag
+02.09.2026;04.09.2026;Kauf Sparplan;IE00BK5BQT80;12,4000;121,84;1,50;0,00;-1.512,30
+05.09.2026;05.09.2026;Dividende;DE0007164600;;;0,00;60,09;158,41
+12.09.2026;16.09.2026;Verkauf;AT0000937503;40;25,31;5,90;0,00;1.006,50</pre></div>
+          <div class="fmtprev">
+            <b>Preview</b><span class="mono">1.234,56</span>→<span class="mono">1234.56</span>
+            <span style="color:var(--line-2)">|</span><span class="mono">02.09.2026</span>→<span class="mono">2026-09-02</span>
+          </div>
+        </div>
+        <div>
+          <div class="phead" style="padding:0 0 4px;border:0"><h2>Field mapping</h2></div>
+          ${[["Execution date","Buchungstag"],["Settlement date","Valuta"],["Type","Text"],["Security (ISIN)","ISIN"],
+             ["Quantity","Stück"],["Price","Kurs"],["Fee","Spesen"],["Tax (KESt)","KESt"],["Net amount","Betrag"]]
+            .map(([k,v])=>`<div class="maprow"><label for="map-${v}">${k}</label>
+              <select id="map-${v}"><option>${v}</option><option>— not mapped —</option></select></div>`).join("")}
+          <div class="maprow"><label for="fmt-date">Date format</label>
+            <select id="fmt-date"><option>DD.MM.YYYY</option><option>YYYY-MM-DD</option><option>MM/DD/YYYY</option></select></div>
+          <div class="maprow"><label for="fmt-dec">Decimal / thousands</label>
+            <select id="fmt-dec"><option>1.234,56  (AT / DE)</option><option>1,234.56  (US / UK)</option></select></div>
+          <div class="maprow"><label for="fmt-enc">Encoding</label>
+            <select id="fmt-enc"><option>Windows-1252 (detected)</option><option>UTF-8</option></select></div>
+        </div>
+      </div>
+    </div>
+    <div class="commitbar">
+      <label style="display:flex;align-items:center;gap:8px;font-size:12.5px"><input type="checkbox" id="saveProfile" checked> Save as profile “DADAT Umsatzliste” — matched automatically next time</label>
+      <div class="spacer"></div><button class="btn" data-go="2">Back</button><button class="btn primary" data-go="4">Parse 18 rows →</button></div>`;
+  }
+
+  if (S.step === 4){
+    const shown = S.rows.filter(r => S.filter==="all" || r.st===S.filter);
+    body = `<div class="pbody" style="padding-bottom:10px">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div class="tabs">
+          ${[["all","All"],["new","New"],["dup","Duplicates"],["attn","Needs attention"]].map(([k,l])=>`
+            <button class="tab" data-filter="${k}" aria-pressed="${S.filter===k}">
+              ${k!=="all"?`<i class="dot" style="background:${statusMeta[k].c}"></i>`:""}${l}<span class="ct">${c[k]}</span></button>`).join("")}
+        </div>
+        <div class="spacer"></div>
+        <span style="font-size:12px;color:var(--muted)">Account</span>
+        <select aria-label="Target account"><option>flatex.at · Depot</option><option>DADAT · Depot</option></select>
+      </div>
+    </div>
+    <div class="tscroll">
+      <table class="rtable">
+        <thead><tr>
+          <th style="width:34px"><input type="checkbox" id="allChk" aria-label="Select all shown"
+            ${shown.length && shown.every(r=>r.on) ? "checked":""}></th>
+          <th>Date</th><th>Type</th><th>Security</th><th class="r">Qty</th><th class="r">Gross</th><th class="r">KESt</th><th class="r">Net</th><th>Status</th>
+        </tr></thead>
+        <tbody>
+          ${shown.map(r=>`
+          <tr data-st="${r.st}">
+            <td><input type="checkbox" data-row="${r.i}" ${r.on?"checked":""} ${r.st==="attn"?"disabled":""} aria-label="Include row ${r.i}"></td>
+            <td class="mono">${r.d}</td>
+            <td><b style="font-size:11.5px">${r.t}</b><br><span style="font-size:10.5px;color:var(--muted)">${r.lbl}</span></td>
+            <td><b>${r.s||"—"}</b>${r.isin?`<br><span class="mono" style="font-size:10.5px;color:var(--muted)">${r.isin}</span>`:""}</td>
+            <td class="r num">${r.q||"—"}</td>
+            <td class="r num">${r.gr?(r.gr.startsWith("kr")?r.gr:"€"+r.gr):"—"}</td>
+            <td class="r num">${r.tax?(r.tax.startsWith("kr")?r.tax:"€"+r.tax):"—"}</td>
+            <td class="r num">${r.net==="—"?"—":(r.net.startsWith("kr")?r.net:"€"+r.net)}</td>
+            <td style="min-width:200px">
+              <span class="chip ${statusMeta[r.st].chip}">${statusMeta[r.st].label}</span>
+              ${r.issue?`<div style="font-size:11px;color:var(--ink-2);margin-top:5px;white-space:normal">${r.issue}</div>`:""}
+            </td>
+          </tr>
+          ${r.st==="attn" ? `<tr data-st="attn" class="issuerow"><td colspan="9">${issuePanel(r)}</td></tr>` : ""}`).join("")}
+        </tbody>
+      </table>
+    </div>
+    <div class="commitbar">
+      <span style="font-size:12px;color:var(--ink-2)">
+        <b class="num">${c.on}</b> of ${c.all} rows selected${c.attn?` · <span style="color:var(--warn)">${c.attn} still need attention</span>`:""}
+      </span>
+      <div class="spacer"></div>
+      <button class="btn" data-go="3">Back</button>
+      <button class="btn primary" id="commitBtn" ${c.on?"":"disabled"}>Import ${c.on} transaction${c.on===1?"":"s"}</button>
+    </div>`;
+  }
+
+  if (S.step === 5){
+    body = `<div class="done">
+      <span class="tick"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="m3.5 8.5 3 3 6-6.5"/></svg></span>
+      <b>${S.committed} transactions imported</b>
+      <p>From <span class="mono">flatex_Transaktionen_2026-Q3.csv</span> into flatex.at · Depot.
+         1 new security created. ${counts().attn} rows stayed in the review queue.</p>
+      <div style="display:flex;gap:9px;margin-top:12px;flex-wrap:wrap;justify-content:center">
+        <button class="btn" id="undoBtn">↩ Undo this import</button>
+        <button class="btn primary" data-view-go="holdings">See updated holdings</button>
+      </div>
+    </div>`;
+  }
+
+  return `
+  <div>
+    <h1>Import</h1>
+    <p class="lede">Nothing reaches the ledger until step 5 — and every import stays revertible as one batch, for as long as it exists.</p>
+  </div>
+  <div class="panel">${stepper()}${body}</div>
+  <div class="panel">
+    <div class="phead"><h2>Import history</h2><span class="sub">every batch stays revertible</span></div>
+    <div class="pbody batches">
+      ${BATCHES.map(b=>`<div class="batch">
+        <span class="chip neutral">${b.src}</span>
+        <span class="bm"><b class="mono" style="font-weight:500">${b.n}</b><span>${b.when} · ${b.stat}</span></span>
+        <button class="btn ghost">Revert</button>
+      </div>`).join("")}
+    </div>
+  </div>`;
+}
+
+function issuePanel(r){
+  if (r.fix === "isin") return `<div class="issue">
+    <div class="hd"><b>Link this security</b></div>
+    <div class="cands">
+      ${CANDIDATES.map((x,n)=>`<button class="cand" data-resolve="${r.i}" data-cand="${n}">
+        <b>${x.n}</b><span class="mono" style="color:var(--muted)">${x.tk} · ${x.ex} · ${x.ccy}</span>
+        <span class="m">${x.m}% match</span></button>`).join("")}
+      <button class="cand" data-resolve="${r.i}" data-cand="manual"><b>Create manually</b>
+        <span class="m">no price feed</span></button>
+    </div>
+    <div style="font-size:10.5px;color:var(--muted)">Two listings, one ISIN — the app will not pick for you.</div>
+  </div>`;
+  if (r.fix === "fx") return `<div class="issue">
+    <div class="hd"><b>Missing FX rate</b></div>
+    <button class="btn" data-resolve="${r.i}" data-cand="fx" style="align-self:flex-start">Fetch ECB rate for 12.08.2026</button>
+  </div>`;
+  return `<div class="issue">
+    <div class="hd"><b>Austrian accumulating-fund tax</b></div>
+    <div style="font-size:11px;color:var(--ink-2)">Record it as a tax charge so the cash balance stays right. v1 does not interpret it further.</div>
+    <button class="btn" data-resolve="${r.i}" data-cand="age" style="align-self:flex-start">Import as TAX · €48,20</button>
+  </div>`;
+}
+</script>
+<script>
+"use strict";
+/* ============================== accounts + settings ============================== */
+function vAccounts(){
+  return `
+  <div><h1>Accounts</h1>
+  <p class="lede">One row per broker account. Archive rather than delete, so history survives closing an account.</p></div>
+  <div class="cards">
+    ${ACCOUNTS.map(a=>`<div class="panel acct">
+      <div class="nm">${a.n}<span class="chip neutral">${a.t}</span></div>
+      <div class="v">${EUR(a.v)}</div>
+      <div class="mt">
+        <span>${(a.v/TOTAL*100).toFixed(1)} % of portfolio · ${a.ccy}</span>
+        <span>${a.tx} transactions</span>
+        <span>Last import: ${a.last}</span>
+      </div>
+    </div>`).join("")}
+    <button class="panel acct" style="align-items:center;justify-content:center;color:var(--muted);border-style:dashed;gap:6px">
+      <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3v10M3 8h10"/></svg>
+      Add account
+    </button>
+  </div>`;
+}
+
+function vSettings(){
+  const row = (b,s,ctl) => `<div class="srow"><span class="lab"><b>${b}</b><span>${s}</span></span>${ctl}</div>`;
+  return `
+  <div><h1>Settings</h1>
+  <p class="lede">Single user, self-hosted. Backup and restore is a shipped feature here, not a documented command.</p></div>
+  <div class="panel">
+    <div class="phead"><h2>Portfolio</h2></div>
+    <div class="pbody" style="padding-top:2px">
+      ${row("Base currency","Every value is converted to this","<select><option>EUR — Euro</option><option>CHF</option><option>USD</option></select>")}
+      ${row("Cost basis method","Changes lots and realised gains","<select><option>FIFO</option><option>Average cost</option></select>")}
+      ${row("Capital gains tax","Austrian KESt, withheld at source by flatex.at and DADAT","<select><option>27,5 % KESt (Austria)</option><option>None</option></select>")}
+      ${row("Benchmark","Shown alongside your return","<select><option>MSCI World (IE00B4L5Y983)</option><option>ATX</option><option>None</option></select>")}
+    </div>
+  </div>
+  <div class="panel">
+    <div class="phead"><h2>Market data</h2></div>
+    <div class="pbody" style="padding-top:2px">
+      ${row("Price provider","Swappable — free feeds change terms without notice","<select><option>Yahoo Finance</option><option>Twelve Data</option><option>stooq</option></select>")}
+      ${row("FX rates","Daily reference rates, carried forward over weekends","<select><option>ECB (free, no key)</option></select>")}
+      ${row("Fetch schedule","Runs whether or not a browser is open",
+        `<select><option>Daily, 22:15 after close</option><option>Hourly</option></select><button class="btn">Run now</button>`)}
+    </div>
+  </div>
+  <div class="panel">
+    <div class="phead"><h2>Data</h2></div>
+    <div class="pbody" style="padding-top:2px">
+      ${row("Backup","Full JSON + CSV export of the ledger, securities and prices",
+        `<button class="btn">Download backup</button><button class="btn">Restore…</button>`)}
+      ${row("Trash","Deleted transactions are restorable for 30 days","<button class=\"btn\">View trash (4)</button>")}
+    </div>
+  </div>
+  <div class="panel danger">
+    <div class="phead"><h2 style="color:var(--neg)">Danger zone</h2></div>
+    <div class="pbody" style="padding-top:2px">
+      ${row("Wipe all data","Removes every transaction, security and cached price","<button class=\"btn\" style=\"color:var(--neg);border-color:var(--neg)\">Wipe…</button>")}
+    </div>
+  </div>`;
+}
+
+/* ============================== router + wiring ============================== */
+const VIEWS = {dashboard:vDashboard, holdings:vHoldings, transactions:vTransactions, import:vImport, accounts:vAccounts, settings:vSettings};
+let ro = null, parseTimer = null;
+
+function render(){
+  document.querySelectorAll(".nav").forEach(b => {
+    if (b.dataset.view === S.view) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current");
+  });
+  document.getElementById("navBadge").textContent = counts().attn;
+  document.getElementById("navBadge").hidden = counts().attn === 0;
+  el.innerHTML = VIEWS[S.view]();
+  if (ro){ ro.disconnect(); ro = null; }
+  if (S.view === "dashboard") mountChart();
+  if (S.view === "import" && S.step === 2) runParse();
+}
+
+function mountChart(){
+  const host = document.getElementById("chart"), tip = document.getElementById("tip");
+  const paint = () => {
+    const geo = drawChart(host, sliceSeries(RANGES.find(r => r.k === S.range)));
+    wireChart(host, tip, geo);
+  };
+  paint();
+  let lastW = host.clientWidth;
+  ro = new ResizeObserver(() => {
+    const w = host.clientWidth;
+    if (Math.abs(w - lastW) < 2) return;   // width-only: never loop on our own height change
+    lastW = w; paint();
+  });
+  ro.observe(document.getElementById("chartwrap"));
+}
+
+function runParse(){
+  clearInterval(parseTimer);
+  if (S.parse >= 100) return;
+  parseTimer = setInterval(() => {
+    S.parse = Math.min(100, S.parse + 7);
+    if (S.view === "import" && S.step === 2) render();
+    if (S.parse >= 100) clearInterval(parseTimer);
+  }, 130);
+}
+
+/* range control */
+const seg = document.getElementById("rangeSeg");
+seg.innerHTML = RANGES.map(r => `<button data-range="${r.k}" aria-pressed="${S.range===r.k}">${r.k}</button>`).join("");
+seg.addEventListener("click", e => {
+  const b = e.target.closest("[data-range]"); if (!b) return;
+  S.range = b.dataset.range;
+  seg.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.range === S.range)));
+  if (S.view === "dashboard") render();
+});
+
+/* nav */
+document.querySelector(".rail").addEventListener("click", e => {
+  const b = e.target.closest(".nav"); if (!b) return;
+  S.view = b.dataset.view; render(); window.scrollTo({top:0});
+});
+
+/* theme */
+const themeBtn = document.getElementById("themeBtn"), themeLabel = document.getElementById("themeLabel");
+const sysDark = () => window.matchMedia("(prefers-color-scheme: dark)").matches;
+let stamped = null;
+try { stamped = localStorage.getItem("dl-theme"); } catch {}
+if (stamped) document.documentElement.setAttribute("data-theme", stamped);
+const syncLabel = () => {
+  const dark = stamped ? stamped === "dark" : sysDark();
+  themeLabel.textContent = dark ? "Light" : "Dark";
+};
+syncLabel();
+themeBtn.addEventListener("click", () => {
+  const dark = stamped ? stamped === "dark" : sysDark();
+  stamped = dark ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", stamped);
+  try { localStorage.setItem("dl-theme", stamped); } catch {}
+  syncLabel();
+  if (S.view === "dashboard") render();
+});
+
+/* delegated content interactions */
+el.addEventListener("click", e => {
+  const lot = e.target.closest("[data-lot]");
+  if (lot){ const k = lot.dataset.lot; S.open.has(k) ? S.open.delete(k) : S.open.add(k); return render(); }
+
+  const step = e.target.closest("[data-step]");
+  if (step){ S.step = +step.dataset.step; return render(); }
+
+  const go = e.target.closest("[data-go]");
+  if (go){ S.step = +go.dataset.go; return render(); }
+
+  const vgo = e.target.closest("[data-view-go]");
+  if (vgo){ S.view = vgo.dataset.viewGo; return render(); }
+
+  const f = e.target.closest("[data-filter]");
+  if (f){ S.filter = f.dataset.filter; return render(); }
+
+  const res = e.target.closest("[data-resolve]");
+  if (res){
+    const r = S.rows.find(x => x.i === +res.dataset.resolve), c = res.dataset.cand;
+    if (c === "fx"){ r.net = "131,35"; r.gr = "€980,00 → €131,35"; r.tax = "35,47"; r.issue = "Converted at 7,4612 DKK/EUR (ECB, 12.08.2026)"; }
+    else if (c === "age"){ r.issue = "Recorded as a tax charge — not interpreted further"; }
+    else if (c === "manual"){ r.s = "Manual security"; r.issue = "Created manually — no price feed, value must be entered by hand"; }
+    else { const x = CANDIDATES[+c]; r.s = x.tk; r.isin = "US0378331005"; r.issue = `Linked to ${x.n} · ${x.ex} · ${x.ccy}`; }
+    r.st = "new"; r.on = true; r.fix = null;
+    return render();
+  }
+
+  if (e.target.id === "commitBtn"){
+    S.committed = counts().on; S.step = 5; return render();
+  }
+  if (e.target.closest("#undoBtn")){
+    S.rows = REVIEW.map(r => ({...r, on: r.st === "new"}));
+    S.committed = 0; S.step = 4; S.filter = "all"; return render();
+  }
+});
+
+el.addEventListener("change", e => {
+  if (e.target.id === "allChk"){
+    const shown = S.rows.filter(r => S.filter === "all" || r.st === S.filter);
+    const on = e.target.checked;
+    shown.forEach(r => { if (r.st !== "attn") r.on = on; });
+    return render();
+  }
+  const row = e.target.closest("[data-row]");
+  if (row){
+    const r = S.rows.find(x => x.i === +row.dataset.row);
+    r.on = row.checked; return render();
+  }
+});
+
+/* keyboard: j/k through holdings is a stated goal; here, 1-6 jump views */
+document.addEventListener("keydown", e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+  const keys = Object.keys(VIEWS);
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= keys.length){ S.view = keys[n-1]; render(); }
+});
+
+render();
+</script>

@@ -11,6 +11,7 @@ what you hold today and how the portfolio got there.
 | [docs/ux-proposal.md](docs/ux-proposal.md) | Product thesis, design principles, information architecture, screen-by-screen wireframes, the import flow, visual language, accessibility, non-goals |
 | [docs/implementation-plan.md](docs/implementation-plan.md) | Architecture, stack rationale, data model, ledger/valuation engines, importer framework, price data, jobs, testing, milestones, risks |
 | [docs/deployment-portability.md](docs/deployment-portability.md) | Running the same codebase locally *and* on a serverless host (Netlify + managed Postgres) — the five seams, the rules that keep them intact, and the privacy trade-off |
+| [prototype/index.html](prototype/index.html) | Clickable prototype — dashboard, holdings with lot drill-down, ledger, and the full five-step import flow. Open the file in a browser; no build step |
 
 ## Scope decided for v1
 
@@ -18,7 +19,8 @@ what you hold today and how the portfolio got there.
   against platform-neutral seams so a serverless deploy (Netlify + Neon) is a config change,
   not a rewrite
 - **Asset classes:** stocks and ETFs (schema stays extensible to crypto, cash and manual assets)
-- **Imports:** broker CSV/XLSX upload and PDF statements, plus manual entry as the fallback
+- **Imports:** Parqet (migration), flatex.at and DADAT CSV/XLSX, then broker PDF statements —
+  see [implementation-plan.md §4.1](docs/implementation-plan.md)
 - **Stack:** TypeScript end to end — Next.js, PostgreSQL, Drizzle
 
 ## Open decisions
