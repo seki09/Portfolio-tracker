@@ -360,7 +360,8 @@ than usual here, and it is not the obvious one.
 
 | # | Adapter id | Source | Kind | Why this order |
 | --- | --- | --- | --- | --- |
-| 1 | `parqet-csv` | **Parqet** transaction export | CSV | **Bootstraps the entire app in one import.** Your full history already exists there, normalised |
+| 0 | `parqet-api` | **Parqet**, connected | API | **Live sync, no files.** Same payloads the Parqet MCP connector returns; prototyped in [`tools/parqet-import`](../tools/parqet-import) |
+| 1 | `parqet-csv` | **Parqet** transaction export | CSV | Fallback when the API is unavailable. **Bootstraps the entire app in one import** |
 | 2 | `flatex-at-csv` | **flatex.at** transaction export | CSV | Ongoing imports; the bulk of new activity |
 | 3 | `dadat-csv` | **DADAT / dad.at** Umsatzliste | CSV/XLSX | Ongoing imports |
 | 4 | `generic-tabular` | anything else | CSV/XLSX | The column mapper; also the escape hatch when 1–3 hit an unknown layout |
@@ -415,7 +416,44 @@ written against a real export file and frozen as a golden fixture. Export format
 three change without notice and published schemas go stale, so one redacted real file per
 source is the specification — see §11.
 
-### 4.3 Parqet export notes
+### 4.3 Parqet as a connected source
+
+Parqet exposes the portfolio through its Connect API (the MCP connector is a thin layer
+over it), which beats the CSV export on every axis: no files, incremental re-sync, and
+Parqet's own figures to reconcile against. The prototype adapter in
+[`tools/parqet-import`](../tools/parqet-import) runs the full pipeline today —
+capture → rebuild → reconcile → snapshot — and the production `parqet-api` adapter swaps
+only the capture step for authenticated HTTP.
+
+**The reconciliation contract.** Positions and lots are rebuilt from raw activities, then
+compared with Parqet's reported shares and cost basis per position. Any mismatch fails the
+sync loudly and lands in the review queue; the app never quietly adopts the source's
+summary over its own ledger. The first real import showed why this is not optional:
+
+- **The activity feed is not split-adjusted.** Pre-split buys arrive in pre-split shares
+  and prices; Parqet applies splits internally. Without a `corporate_action` table, share
+  counts were off by the split ratio and one position "sold more than it bought". Splits
+  are applied on their ex-date from a maintained table, and an unknown split surfaces as
+  exactly that error. This promotes corporate actions from a v1 nicety to a sync
+  prerequisite.
+- **Parqet's cost basis is FIFO with transaction fees excluded.** The converter computes
+  all four variants — {FIFO, moving average} × {fees in, fees out} — and reports which one
+  the source used, so a methodology change on Parqet's side is detected rather than
+  absorbed.
+- **Austrian KESt needs a different number.** Privately held securities are taxed on a
+  moving-average basis with fees excluded, which can differ materially from Parqet's FIFO
+  figure for positions bought in several tranches. The snapshot carries both: FIFO for
+  display (so figures match Parqet) and the Austrian basis alongside it.
+- **Range returns come from the source, not the series.** Realised gains leave the value
+  series as cash, so computing a 1Y return from value deltas understates it. Per-range
+  TWR, XIRR and gain are taken from Parqet until the in-house returns engine (M4) can be
+  validated against them.
+
+**Privacy.** Synced payloads and snapshots are personal financial data. They live under
+`imports/` and in `*.local.js`, both gitignored. In serverless mode the same
+parse-then-discard rule as broker PDFs applies to raw payloads.
+
+### 4.4 Parqet export notes
 
 Parqet's export is already close to canonical: one row per transaction with ISIN, type,
 date, quantity, price, fee, tax, total and the originating broker/portfolio. Two things
@@ -585,6 +623,9 @@ adapter interface stays uniform across CSV and PDF.
 | KESt handled as part of net rather than as `tax` | Dividend yield and gross income read ~27% low | Explicit assertion in the Austrian adapters that gross − tax − fee = net, surfaced as a row issue when it fails |
 | Windows-1252 export read as UTF-8 | Mojibake names break security matching | Encoding detection, plus a fixture in the original encoding per adapter |
 | Parqet export proves incomplete for early years | History starts later than reality | Verify coverage against Parqet's own UI before M4/M5 ordering is locked; PDF adapters are the fallback and stay in the plan |
+| Source data not split-adjusted | Share counts wrong by the split ratio | Maintained `corporate_action` table applied on ex-date; reconciliation against the source's share count fails the sync on any gap |
+| Source changes its cost-basis methodology | Gains silently shift | Four-variant reconciliation names the method matched on every sync; a change in the matched method is flagged |
+| Personal data committed to a public repo | Irreversible exposure | `imports/` and `*.local.*` gitignored; committed demo snapshot is fictional; review the staged diff for real figures before every commit |
 | PDF extraction proves brittle across layout versions | M4 overruns | Time-box per adapter; CSV path always available as the fallback; detect unknown layout and say so explicitly |
 | Float arithmetic leaks into the money path | Cent-level drift, eroded trust | `numeric` + `decimal.js`, a lint rule banning arithmetic operators on money types, property tests asserting exact sums |
 | Corporate actions (splits, mergers) handled wrongly | Historical quantities wrong | Manual corporate-action entry in v1 with a clear UI; automatic feeds only once a provider proves reliable |

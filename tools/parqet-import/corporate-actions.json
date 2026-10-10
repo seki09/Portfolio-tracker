@@ -1,0 +1,101 @@
+{
+  "_note": "Public market data, not personal data. Parqet's activity feed is NOT split-adjusted; Parqet applies splits internally. Add entries as needed — the converter fails loudly on a position it cannot reconcile.",
+  "splits": [
+    {
+      "isin": "US5949181045",
+      "name": "Microsoft",
+      "exDate": "2003-02-18",
+      "ratio": 2
+    },
+    {
+      "isin": "US0378331005",
+      "name": "Apple",
+      "exDate": "2014-06-09",
+      "ratio": 7
+    },
+    {
+      "isin": "US64110L1061",
+      "name": "Netflix",
+      "exDate": "2015-07-15",
+      "ratio": 7
+    },
+    {
+      "isin": "US0378331005",
+      "name": "Apple",
+      "exDate": "2020-08-31",
+      "ratio": 4
+    },
+    {
+      "isin": "US88160R1014",
+      "name": "Tesla",
+      "exDate": "2020-08-31",
+      "ratio": 5
+    },
+    {
+      "isin": "US67066G1040",
+      "name": "NVIDIA",
+      "exDate": "2021-07-20",
+      "ratio": 4
+    },
+    {
+      "isin": "US0231351067",
+      "name": "Amazon",
+      "exDate": "2022-06-06",
+      "ratio": 20
+    },
+    {
+      "isin": "CA82509L1076",
+      "name": "Shopify",
+      "exDate": "2022-06-29",
+      "ratio": 10
+    },
+    {
+      "isin": "US02079K3059",
+      "name": "Alphabet A",
+      "exDate": "2022-07-18",
+      "ratio": 20
+    },
+    {
+      "isin": "US02079K1079",
+      "name": "Alphabet C",
+      "exDate": "2022-07-18",
+      "ratio": 20
+    },
+    {
+      "isin": "US88160R1014",
+      "name": "Tesla",
+      "exDate": "2022-08-25",
+      "ratio": 3
+    },
+    {
+      "isin": "US9311421039",
+      "name": "Walmart",
+      "exDate": "2024-02-26",
+      "ratio": 3
+    },
+    {
+      "isin": "US67066G1040",
+      "name": "NVIDIA",
+      "exDate": "2024-06-10",
+      "ratio": 10
+    },
+    {
+      "isin": "US1696561059",
+      "name": "Chipotle",
+      "exDate": "2024-06-26",
+      "ratio": 50
+    },
+    {
+      "isin": "US11135F1012",
+      "name": "Broadcom",
+      "exDate": "2024-07-15",
+      "ratio": 10
+    },
+    {
+      "isin": "US64110L1061",
+      "name": "Netflix",
+      "exDate": "2025-11-17",
+      "ratio": 10
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+# ---------------------------------------------------------------------------
+# Personal financial data must never reach this (public) repository.
+# Raw broker / Parqet payloads and every snapshot derived from them stay local.
+# ---------------------------------------------------------------------------
+imports/
+*.local.js
+*.local.json
+
+# tooling
+node_modules/
+.DS_Store

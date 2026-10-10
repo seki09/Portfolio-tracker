@@ -11,7 +11,8 @@ what you hold today and how the portfolio got there.
 | [docs/ux-proposal.md](docs/ux-proposal.md) | Product thesis, design principles, information architecture, screen-by-screen wireframes, the import flow, visual language, accessibility, non-goals |
 | [docs/implementation-plan.md](docs/implementation-plan.md) | Architecture, stack rationale, data model, ledger/valuation engines, importer framework, price data, jobs, testing, milestones, risks |
 | [docs/deployment-portability.md](docs/deployment-portability.md) | Running the same codebase locally *and* on a serverless host (Netlify + managed Postgres) — the five seams, the rules that keep them intact, and the privacy trade-off |
-| [prototype/index.html](prototype/index.html) | Clickable prototype — dashboard, holdings with lot drill-down, ledger, and the full five-step import flow. Open the file in a browser; no build step |
+| [prototype/index.html](prototype/index.html) | Mobile-first clickable prototype — overview, holdings with lot drill-down, activity ledger, import flow, settings. Open the file in a browser; no build step |
+| [tools/parqet-import/](tools/parqet-import/) | Parqet → snapshot converter: rebuilds lots from raw activities, applies splits, reconciles against Parqet |
 
 ## Scope decided for v1
 
@@ -22,6 +23,16 @@ what you hold today and how the portfolio got there.
 - **Imports:** Parqet (migration), flatex.at and DADAT CSV/XLSX, then broker PDF statements —
   see [implementation-plan.md §4.1](docs/implementation-plan.md)
 - **Stack:** TypeScript end to end — Next.js, PostgreSQL, Drizzle
+
+## Your own data
+
+The prototype renders `prototype/data/portfolio.local.js` when it exists and the
+fictional demo snapshot otherwise. To load your portfolio from Parqet, see
+[tools/parqet-import](tools/parqet-import/README.md).
+
+> **This repository is public.** Raw payloads (`imports/`) and generated snapshots
+> (`*.local.js`) are gitignored. Never commit them, and never paste real figures into docs
+> or commit messages.
 
 ## Open decisions
 

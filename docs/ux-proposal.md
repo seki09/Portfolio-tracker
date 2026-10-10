@@ -317,7 +317,9 @@ for screenshots and tests.
 Desktop-first, because the import and review flows are inherently table work. But
 *checking* the portfolio is a phone activity, so below 768px:
 
-- Nav collapses to a bottom bar: Dashboard · Holdings · Transactions · More.
+- Nav collapses to a bottom bar: Overview · Holdings · Activity · Import · More, with
+  48 px touch targets and the gesture-bar safe area respected. Built and verified in the
+  prototype at a Pixel 10 Pro viewport (≈410 × 914 CSS px), plus 360 px and 448 px.
 - Dashboard becomes a single column: total, chart, allocation, movers.
 - Holdings becomes cards (name, value, gain) rather than a horizontally scrolling table.
 - Import is available but honest about it — "this works best on a larger screen" — with the
@@ -355,8 +357,9 @@ Naming these protects the schedule; each is a plausible v2.
    dad.at. See [implementation-plan.md §4.1](implementation-plan.md) — Parqet goes first
    because its export seeds the whole history in one import.
 2. **Base currency** — EUR assumed throughout, consistent with all three sources.
-3. **Cost basis method** — FIFO assumed. Average cost is the alternative and changes both
-   the lots UI and the realised-gain figures.
+3. ~~**Cost basis method**~~ **Answered by the first Parqet sync:** display FIFO with fees
+   excluded, which is what Parqet uses, so figures agree with it. The Austrian KESt basis
+   (moving average, fees excluded) is computed alongside and shown where it differs.
 4. **Benchmark comparison** — worth it for v1, or v2? It is cheap once the daily series
    exists (one extra security's price history) and it is the first thing people ask for
    after seeing a return number.
