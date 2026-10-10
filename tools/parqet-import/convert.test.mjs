@@ -46,10 +46,14 @@ function build() {
   w("activities-pfB.json", { portfolioId: "pfB", activities: B, cursor: null, totalActivities: B.length });
   w("performance.json", {
     currency: "EUR", interval: { start: "2024-01-10", end: "2024-12-30" },
-    performance: { ...perfBlock(61, 660, 0), kpis: { inInterval: { xirr: 12.3, ttwror: 20.1 } }, valuation: { atIntervalStart: 0, atIntervalEnd: 2100 } },
+    // Realised (Parqet net = sell amountNet − FIFO cost − sold lots' buy fees):
+    //   X at B: (650 − 1 − 3) − (600 + 1) = 45 · Y: (120 − 1) − (100 + 1) = 18
+    //   Z at A: (27 − 1) − (30 + 1) = −5        · Z at B: 9 − 8 = 1           → total 59
+    // Cash-flow truth: value 2100 + Σ received 800 − Σ paid 2183 = 717 = 59 + unrealised 658
+    performance: { ...perfBlock(59, 658, 0), kpis: { inInterval: { xirr: 12.3, ttwror: 20.1 } }, valuation: { atIntervalStart: 0, atIntervalEnd: 2100 } },
     holdings: [
       holding("hA-X", "pfA", "IE00TEST0001", "Test World UCITS ETF", 10, 1000, 150, 0),
-      holding("hB-X", "pfB", "IE00TEST0001", "Test World UCITS ETF", 4, 440, 150, 46),
+      holding("hB-X", "pfB", "IE00TEST0001", "Test World UCITS ETF", 4, 440, 150, 45),
       holding("hB-Y", "pfB", "US00TEST0002", "Test Corp", 0, 0, 60, 18),
       holding("hA-Z", "pfA", "DE00TEST0003", "Test AG", 0, 0, 9, -5),
       holding("hB-Z", "pfB", "DE00TEST0003", "Test AG", 0, 0, 9, 1),
@@ -77,8 +81,8 @@ test("same security at two brokers is one position with per-account lots", () =>
   assert.equal(x.value, 2100);                                 // 14 × 150
   assert.equal(x.cost, 1440);                                  // 1000 + 440 (FIFO, fees excluded)
   assert.equal(x.avg, 102.86);                                 // 1440 / 14
-  assert.equal(x.unrealized, 660);
-  assert.equal(x.realized, 46);                                // B's sell-out stays with the open position
+  assert.equal(x.unrealized, 658);                             // 2100 − 1440 − open-lot buy fees (1 + 1)
+  assert.equal(x.realized, 45);                                // B's sell-out stays with the open position
   assert.deepEqual(x.accounts.map(a => [a.name, a.shares]), [["Broker A", 10], ["Broker B", 4]]);
   assert.deepEqual(x.lots.map(l => [l.date, l.shares, l.account]), [["2024-01-10", 10, "Broker A"], ["2024-07-01", 4, "Broker B"]]);
 });
@@ -91,6 +95,7 @@ test("closed at every broker → one closed entry with realised results summed",
 test("every per-broker holding reconciles and the ledger names accounts", () => {
   const P = P0();
   assert.ok(P.sync.reconcile.every(c => c.ok), JSON.stringify(P.sync.reconcile));
+  assert.equal(P.totals.totalGain, 717);                       // equals the cash-flow truth above
   assert.equal(P.ledger.length, 10);
   assert.deepEqual([...new Set(P.ledger.map(l => l.account))].sort(), ["Broker A", "Broker B"]);
 });

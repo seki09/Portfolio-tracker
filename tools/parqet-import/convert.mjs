@@ -199,8 +199,14 @@ for (const h of holdings.values()) {
     id: h.id, isin: h.isin, name: h.short, fullName: h.name, kind: h.kind, account: h.account,
     shares: r6(theirs.shares), price: theirs.currentPrice, value: r2(theirs.currentValue),
     cost: r2(theirs.purchaseValue), avg: r2(theirs.purchasePrice),
-    unrealized: r2(theirs.currentValue - theirs.purchaseValue),
-    unrealizedPct: theirs.purchaseValue ? r2((theirs.currentValue / theirs.purchaseValue - 1) * 100) : 0,
+    // Net of the buy fees still attached to the open lots. (Parqet subtracts every buy fee the
+    // holding ever paid, so fees of lots already sold are counted in realised AND unrealised.)
+    ...(() => {
+      const openFees = (rb.fifo ?? []).reduce((t, l) => t + l.fee, 0);
+      const outlay = theirs.purchaseValue + openFees;
+      return { openFees: r2(openFees), unrealized: r2(theirs.currentValue - outlay),
+               unrealizedPct: outlay ? r2((theirs.currentValue / outlay - 1) * 100) : 0 };
+    })(),
     realized: r2(h.realizedNet), dividendsNet: r2(h.dividendsNet),
     dayAbs: d ? r2(d.atIntervalEnd - d.atIntervalStart) : null,
     dayPct: d ? r2((d.atIntervalEnd / d.atIntervalStart - 1) * 100) : null,
@@ -225,7 +231,9 @@ function combine(list) {
     const dayKnown = parts.every(p => p.dayAbs != null), dayAbs = dayKnown ? r2(sum("dayAbs")) : null;
     return {
       ...lead, id: "isin-" + lead.isin, account: null, shares, value, cost,
-      avg: shares ? r2(cost / shares) : 0, unrealized: r2(value - cost), unrealizedPct: cost ? r2((value / cost - 1) * 100) : 0,
+      openFees: r2(sum("openFees")),
+      avg: shares ? r2(cost / shares) : 0, unrealized: r2(value - cost - sum("openFees")),
+      unrealizedPct: cost + sum("openFees") ? r2((value / (cost + sum("openFees")) - 1) * 100) : 0,
       realized: r2(sum("realized")), dividendsNet: r2(sum("dividendsNet")),
       dayAbs, dayPct: dayKnown && value - dayAbs ? r2(dayAbs / (value - dayAbs) * 100) : null,
       quote: parts.map(p => p.quote).sort((a, b) => b.at.localeCompare(a.at))[0],
@@ -272,9 +280,10 @@ const ledger = acts.slice().reverse().map(a => {
 
 /* --------------------------------------------------------------- series */
 // history = market value; capitalHistory = cost basis of positions held that day.
-const series = charts.charts
-  .filter(p => p.values && typeof p.values.history === "number")
-  .map(p => [p.date.slice(0, 10), r2(p.values.history), r2(p.values.capitalHistory)]);
+const seriesByDate = new Map();
+for (const p of charts.charts.filter(p => p.values && typeof p.values.history === "number"))
+  seriesByDate.set(p.date.slice(0, 10), [p.date.slice(0, 10), r2(p.values.history), r2(p.values.capitalHistory)]);   // last point per date wins
+const series = [...seriesByDate.values()].sort((a, b) => a[0].localeCompare(b[0]));
 
 /* --------------------------------------------------------------- totals */
 const P = performance.performance;
@@ -282,7 +291,7 @@ const value = P.valuation.atIntervalEnd;
 const totals = {
   value: r2(value),
   invested: r2(open.reduce((s, h) => s + h.cost, 0)),
-  unrealized: r2(P.unrealizedGains.inInterval.gainNet),
+  unrealized: r2(open.reduce((t, h) => t + h.unrealized, 0)),     // = Σ rows (see note above)
   realized: r2(P.realizedGains.inInterval.gainNet),
   dividendsGross: r2(P.dividends.inInterval.gainGross),
   dividendsNet: r2(P.dividends.inInterval.gainNet),
@@ -300,6 +309,14 @@ const totals = {
 // Parqet's own gains.totalNet excludes dividends; ours includes them, labelled as such.
 totals.totalGain = r2(totals.realized + totals.unrealized + totals.dividendsNet);
 totals.costBasisMethod = "FIFO, fees excluded";
+// Ground truth: value now + everything received − everything paid, all net. Only defined when
+// every activity is a cash event (no transfers or deposits) in EUR.
+if (acts.every(a => ["buy", "sell", "dividend", "interest", "fees_taxes"].includes(a.type) && a.currency === "EUR")) {
+  const flows = acts.reduce((t, a) => t + (a.type === "buy" || a.type === "fees_taxes" ? -a.amountNet : a.amountNet), 0);
+  const truth = r2(value + flows), ok = Math.abs(truth - totals.totalGain) <= 0.05;
+  reconcile.push({ isin: "TOTAL", name: "Total gain vs cash flows", ok, totals: { ours: totals.totalGain, cashFlows: truth },
+    ...(ok ? {} : { issue: `total gain ${totals.totalGain} ≠ cash-flow result ${truth}` }), matches: ok ? ["cash flows"] : [] });
+}
 
 // Per-range returns come from the source, not from the series: realised gains
 // leave the series as cash, so value deltas alone would understate returns.
@@ -340,7 +357,9 @@ console.log(`  ${acts.length} activities · ${open.length} open / ${closed.lengt
 console.log(`  value €${totals.value} · invested €${totals.invested} · total gain €${totals.totalGain} · XIRR ${totals.xirr}%`);
 for (const c of reconcile) {
   const sp = c.splits?.length ? ` · splits ${c.splits.map(x => x.ratio + ":1 " + x.exDate).join(", ")}` : "";
-  console.log(c.ok ? "  ✓" : "  ✗", c.name.padEnd(16), c.issue ??
-    `shares ${c.shares.ours} = ${c.shares.parqet}${sp}\n${" ".repeat(20)}cost ${JSON.stringify(c.cost)}\n${" ".repeat(20)}matches: ${c.matches.join(" | ") || "none"}`);
+  const detail = c.issue ?? (c.totals
+    ? `€${c.totals.ours} = €${c.totals.cashFlows} (value + received − paid, all net)`
+    : `shares ${c.shares.ours} = ${c.shares.parqet}${sp}\n${" ".repeat(20)}cost ${JSON.stringify(c.cost)}\n${" ".repeat(20)}matches: ${c.matches.join(" | ") || "none"}`);
+  console.log(c.ok ? "  ✓" : "  ✗", c.name.padEnd(16), detail);
 }
 if (failures.length) { console.error(`\n${failures.length} position(s) do not reconcile with Parqet.`); process.exitCode = 2; }

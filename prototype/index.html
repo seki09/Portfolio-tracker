@@ -682,7 +682,7 @@ function holdingDetail(h) {
   const f = (k, v, c = "") => `<div><dt class="t-label-m">${k}</dt><dd class="t-title-s ${c}">${v}</dd></div>`;
   return `<div class="hdetail">
     <dl class="facts">
-      ${f("Unrealised", eurS(h.unrealized), cls(h.unrealized))}
+      ${f("Unrealised, after fees", eurS(h.unrealized), cls(h.unrealized))}
       ${f("Cost basis", eur(h.cost))}
       ${f("Avg. cost", eur(h.avg))}
       ${f("Realised", h.realized ? eurS(h.realized) : "—", h.realized ? cls(h.realized) : "")}
