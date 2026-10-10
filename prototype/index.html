@@ -6,7 +6,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Code:wght@400..500&family=Google+Sans+Flex:opsz,wght@6..144,300..700&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400..600,0..1,0&icon_names=add,calculate,check,check_circle,chevron_right,cloud_done,dark_mode,description,download,expand_more,help,info,light_mode,lock,monitoring,more_horiz,payments,pie_chart,priority_high,receipt_long,remove,science,sync,undo,warning&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400..600,0..1,0&icon_names=add,calculate,check,check_circle,chevron_right,cloud_done,dark_mode,description,download,error,expand_more,help,info,light_mode,lock,monitoring,more_horiz,payments,picture_as_pdf,pie_chart,priority_high,receipt_long,remove,science,sync,undo,upload_file,warning&display=block">
 <style>
 /* =====================================================================
    Material 3, monochrome. Colour roles generated with
@@ -205,6 +205,8 @@ main.content.enter > *{animation:enter .45s var(--md-sys-motion-easing-emphasize
 .btn .ms{font-size:20px}
 .btn.filled{background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary)}
 .btn.outlined{border:1px solid var(--md-sys-color-outline-variant);color:var(--md-sys-color-on-surface)}
+.btn.tonal{background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container)}
+.btn.text{padding:0 12px;color:var(--md-sys-color-primary);background:transparent}
 .btn[disabled]{background:color-mix(in srgb,var(--md-sys-color-on-surface) 10%,transparent);color:color-mix(in srgb,var(--md-sys-color-on-surface) 38%,transparent);cursor:not-allowed;border-color:transparent}
 .btn[disabled]::after{display:none}
 .btn.block{width:100%}
@@ -403,7 +405,7 @@ main.content.enter > *{animation:enter .45s var(--md-sys-motion-easing-emphasize
 .steps li.done i{border-color:var(--md-sys-color-on-surface);color:var(--md-sys-color-on-surface)}
 .steps .sep{width:12px;height:1px;background:var(--md-sys-color-outline-variant)}
 .filerow{display:grid;grid-template-columns:24px minmax(0,1fr);gap:14px;align-items:start;padding-block:12px}
-.filerow .fn{font-family:var(--app-typeface-mono);font-size:14px;word-break:break-all}
+.filerow .fn{font-weight:600;font-size:15px;overflow-wrap:anywhere}
 .rcard{display:grid;grid-template-columns:40px minmax(0,1fr);gap:4px 10px;padding-block:8px;align-items:start}
 .rcard[data-st="dup"] .t{opacity:.62}
 .rcard .t{min-width:0;padding-top:8px;display:flex;flex-direction:column;gap:2px}
@@ -448,6 +450,17 @@ select:focus-visible{outline:2px solid var(--md-sys-color-primary);outline-offse
 .srow b{font-weight:600;font-size:16px}
 .srow p{color:var(--md-sys-color-on-surface-variant);margin-top:2px}
 .srow select{margin-top:10px}
+
+/* ---- file import ---- */
+.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.drop{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:28px 16px;margin-block:4px 8px;
+  border:1.5px dashed var(--md-sys-color-outline-variant);border-radius:var(--md-sys-shape-corner-large);transition:background .2s,border-color .2s}
+.drop > .ms{font-size:36px;color:var(--md-sys-color-on-surface-variant)}
+.drop.over{border-color:var(--md-sys-color-primary);background:color-mix(in srgb,var(--md-sys-color-primary) 6%,transparent)}
+.drop .btn{margin-top:6px}
+.drop .t-body-s{display:inline-flex;align-items:center;gap:4px}
+.drop .t-body-s .ms{font-size:16px}
+.split.src{color:var(--md-sys-color-on-surface-variant);border-color:var(--md-sys-color-outline-variant)}
 </style>
 <div class="app">
   <nav class="rail" aria-label="Sections">
@@ -469,6 +482,7 @@ select:focus-visible{outline:2px solid var(--md-sys-color-primary);outline-offse
 
 <script src="data/portfolio.demo.js"></script>
 <script src="data/portfolio.local.js"></script>
+<script src="importers/flatex-at-pdf.js"></script>
 <script>
 "use strict";
 /* ============================== data ============================== */
@@ -622,7 +636,7 @@ function wireScrub(host, geo, readout, idle) {
 const S = { view: "overview", range: "MAX", hfilter: "open", afilter: "all", apage: 60, open: new Set(), imp: null };
 
 const divRows = P.ledger.filter(l => l.type === "DIVIDEND");
-const countOf = t => P.sync?.counts?.[t] ?? P.ledger.filter(l => l.type === t.toUpperCase()).length;
+const countOf = t => P.ledger.filter(l => l.type === t.toUpperCase()).length;
 const sinceY = (P.meta.since || SERIES[0].d).slice(0, 4);
 const austriaBasis = P.holdings.reduce((s, h) => s + (h.costAustria ?? h.cost), 0);
 
@@ -785,10 +799,10 @@ function vActivity() {
     const t = r.type.toLowerCase();
     const sub = r.type === "DIVIDEND"
       ? `${fmtD(r.d)} · gross <span class="nw">${eur(r.gross)}</span>${r.tax ? ` · tax <span class="nw">${eur(r.tax)}</span>` : ""}`
-      : `${fmtD(r.d)} · <span class="nw">${nfq.format(r.shares)} @ ${eur(r.price)}</span>`;
+      : `${fmtD(r.d)} · <span class="nw">${nfq.format(r.shares)} @ ${r.priceCcy && r.priceCcy !== "EUR" ? nf2.format(r.priceNative) + NB + r.priceCcy : eur(r.price)}</span>`;
     const kind = r.type === "BUY" ? "Buy" : r.type === "SELL" ? "Sell" : "Dividend";
     html += `<div class="arow"><span class="aic ${t}" title="${kind}">${ms(ICON[t] || ICON.buy, "md")}</span>
-      <span class="abody"><span class="atop"><span class="an">${esc(r.name)}${r.preSplit ? `<span class="split" title="Recorded before a ${r.preSplit}:1 split">pre-split</span>` : ""}</span><span class="aa ${r.net > 0 ? "pos" : ""}">${eurS(r.net)}</span></span>
+      <span class="abody"><span class="atop"><span class="an">${esc(r.name)}${r.preSplit ? `<span class="split" title="Recorded before a ${r.preSplit}:1 split">pre-split</span>` : ""}${r.source ? `<span class="split src">${esc(r.source)}</span>` : ""}</span><span class="aa ${r.net > 0 ? "pos" : ""}">${eurS(r.net)}</span></span>
       <span class="asub t-body-s">${kind} · ${sub}${r.fee ? ` · fee <span class="nw">${eur(r.fee)}</span>` : ""}</span></span></div>`;
   }
   if (month) html += `</div></div>`;
@@ -810,25 +824,158 @@ function vActivity() {
 <script>
 "use strict";
 /* ============================== import ============================== */
-const EXAMPLE = [
-  { i: 1, d: "2026-07-02", t: "BUY", lbl: "Sparplan Kauf", s: "FTSE All-World", isin: "IE00BK5BQT80", q: "12,4831", net: -1512.30, st: "new" },
-  { i: 2, d: "2026-07-04", t: "DIVIDEND", lbl: "Dividende", s: "OMV", isin: "AT0000743059", q: "", net: 102.95, gross: 142.00, tax: 39.05, st: "new" },
-  { i: 3, d: "2026-07-09", t: "BUY", lbl: "Kauf", s: "???", isin: "US5949181045", q: "5", net: -1880.00, st: "attn", fix: "isin", issue: "No security matches this ISIN" },
-  { i: 4, d: "2026-07-15", t: "SELL", lbl: "Verkauf", s: "voestalpine", isin: "AT0000937503", q: "40", net: 1006.50, st: "dup", issue: "Already imported" },
-  { i: 5, d: "2026-08-01", t: "BUY", lbl: "Sparplan Kauf", s: "FTSE All-World", isin: "IE00BK5BQT80", q: "11,8000", net: -1512.30, st: "new" },
-  { i: 6, d: "2026-09-08", t: "TAX", lbl: "Ausschüttungsgleiche Erträge", s: "FTSE All-World", isin: "IE00BK5BQT80", q: "", net: -48.20, st: "attn", fix: "age", issue: "Austrian accumulating-fund tax" },
-  { i: 7, d: "2026-09-12", t: "FEE", lbl: "Depotgebühr", s: "Account fee", isin: "", q: "", net: -11.90, st: "new" },
-  { i: 8, d: "2026-09-15", t: "DEPOSIT", lbl: "Einzahlung", s: "Deposit", isin: "", q: "", net: 3000.00, st: "dup", issue: "Already imported" },
-  { i: 9, d: "2026-09-19", t: "DIVIDEND", lbl: "Dividende", s: "FTSE All-World", isin: "IE00BK5BQT80", q: "", net: 69.89, gross: 96.40, tax: 26.51, st: "new" },
+/* Real file import: files are read on this device, text is extracted with pdf.js,
+   broker parsers in importers/*.js turn it into transactions, and nothing reaches
+   the ledger until the review is confirmed. Every confirmed batch can be undone. */
+const PDFJS_BASE = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+const SUPPORTED = [
+  ["flatex.at", "Buy and sell statements (PDF)", true],
+  ["flatex.at", "Transaction export (CSV)", false],
+  ["DADAT", "Umsatzliste (XLSX)", false],
 ];
-const BROKERS = [
-  { k: "flatex", n: "flatex.at", s: "Transaction CSV", c: "var(--c1)", file: "flatex_Transaktionen_2026-Q3.csv", ad: "flatex-at-csv" },
-  { k: "dadat", n: "DADAT", s: "Umsatzliste XLSX", c: "var(--c3)", file: "DADAT_Umsatzliste_092026.xlsx", ad: "dadat-xlsx" },
-  { k: "other", n: "Other", s: "Any CSV or XLSX", c: "var(--c4)", file: "export(4).csv", ad: null },
-];
-const newImport = b => ({ step: 1, broker: b, filter: "all", rows: EXAMPLE.map(r => ({ ...r, on: r.st === "new" })) });
+S.batches = [];
+const parsers = () => Object.values(window.Importers || {});
+
+let pdfjsLoading = null;
+function loadScript(src) {
+  return new Promise((res, rej) => { const el = document.createElement("script"); el.src = src; el.onload = res; el.onerror = rej; document.head.appendChild(el); });
+}
+function loadPdfJs() {
+  if (window.pdfjsLib && window.pdfjsWorker) return Promise.resolve(window.pdfjsLib);
+  // The worker code runs on the main thread (no Worker, no blob: URL), which works under
+  // file:// and strict CSPs alike. Broker statements are 1–3 pages, so this is instant.
+  return pdfjsLoading ||= loadScript(PDFJS_BASE + "pdf.min.js")
+    .then(() => loadScript(PDFJS_BASE + "pdf.worker.min.js"))
+    .then(() => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + "pdf.worker.min.js"; return window.pdfjsLib; })
+    .catch(() => { pdfjsLoading = null; throw new Error("Couldn't load the PDF reader. Check your connection and try again."); });
+}
+async function pdfPages(buf) {
+  const lib = await loadPdfJs();
+  const doc = await lib.getDocument({ data: new Uint8Array(buf), isEvalSupported: false, disableFontFace: true }).promise;
+  const pages = [];
+  for (let n = 1; n <= doc.numPages; n++) {
+    const tc = await (await doc.getPage(n)).getTextContent();
+    pages.push(tc.items.filter(i => "str" in i).map(i => ({ str: i.str, x: i.transform[4], y: i.transform[5] })));
+  }
+  doc.destroy();
+  return pages;
+}
+async function fileHash(buf) {
+  try {
+    const d = await crypto.subtle.digest("SHA-256", buf);
+    return [...new Uint8Array(d)].map(x => x.toString(16).padStart(2, "0")).join("");
+  } catch {                                   // no SubtleCrypto (non-secure context): FNV-1a + length
+    let h = 0x811c9dc5; const u = new Uint8Array(buf);
+    for (const x of u) { h ^= x; h = Math.imul(h, 0x01000193) >>> 0; }
+    return "fnv-" + h.toString(16) + "-" + u.length;
+  }
+}
+// Long broker file names (date_type_account_number.pdf) wrap at their separators, not mid-letter.
+const fileLabel = n => esc(n).replace(/([_\-.])/g, "$1<wbr>");
+const knownName = isin => [...P.holdings, ...P.closed].find(h => h.isin === isin)?.name;
+
+async function handleFiles(list) {
+  const files = [...list];
+  if (!files.length) return;
+  S.imp = { step: "review", filter: "all", files: files.map(f => ({ name: f.name, status: "reading" })), rows: [] };
+  render();
+  document.getElementById("fileImport")?.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i], st = S.imp.files[i];
+    try {
+      const buf = await f.arrayBuffer();
+      st.hash = await fileHash(buf.slice(0));
+      const prior = S.batches.find(x => x.files.some(y => y.hash === st.hash));
+      if (prior) { st.status = "skip"; st.message = `You imported this exact file ${fmtTime(prior.at)}.`; continue; }
+      if (!/\.pdf$/i.test(f.name) && f.type !== "application/pdf") {
+        st.status = "skip";
+        st.message = /\.(csv|xlsx?)$/i.test(f.name) ? "CSV and XLSX exports aren't supported yet. Use the PDF statements for now." : "Not a supported file type.";
+        continue;
+      }
+      st.status = "parsing"; render();
+      const pages = await pdfPages(buf);
+      const [best] = parsers().map(x => [x, x.detect(pages)]).sort((m, n) => n[1] - m[1]);
+      if (!best || best[1] < 0.5) { st.status = "skip"; st.message = "Not recognised as a supported broker statement."; continue; }
+      const res = best[0].parse(pages);
+      st.parser = best[0].label; st.docType = res.docType;
+      if (!res.transactions.length) { st.status = "skip"; st.message = res.issues[0]?.message || "No transactions found."; continue; }
+      st.status = "ok"; st.count = res.transactions.length;
+      for (const t of res.transactions) S.imp.rows.push({ ...t, id: `${st.hash.slice(0, 12)}-${S.imp.rows.length}`, display: knownName(t.isin) || t.name, fileHash: st.hash });
+    } catch (err) {
+      st.status = "error"; st.message = err?.message || String(err);
+    } finally {
+      classify(); if (S.imp?.step === "review") render();
+    }
+  }
+}
+
+/* Decide each row's status. Never guesses: anything uncertain needs an explicit choice. */
+function classify() {
+  const rows = S.imp.rows;
+  const same = (a, b) => a.isin === b.isin && a.type === b.type && Math.abs((a.shares || 0) - (b.shares || 0)) < 1e-6;
+  rows.forEach((r, idx) => {
+    r.why = ""; r.fix = null;
+    const errors = r.issues.filter(x => x.level === "error");
+    if (errors.length) { r.st = "attn"; r.why = "Couldn't read this statement reliably: " + errors.map(x => x.message).join(" "); r.on = false; return; }
+    if (P.ledger.some(l => (r.txNo && l.txNo === r.txNo) || (l.source === r.source && l.d === r.date && same(l, r) && Math.abs(l.net - r.net) < 0.01))) {
+      r.st = "dup"; r.why = "Already in your ledger."; r.on = false; return;
+    }
+    if (rows.slice(0, idx).some(o => o.txNo && o.txNo === r.txNo)) { r.st = "dup"; r.why = "Same trade as a row above."; r.on = false; return; }
+    const near = P.ledger.find(l => !l.source && same(l, r) && Math.abs(Date.parse(l.d) - Date.parse(r.date)) <= 3 * 864e5);
+    if (near && !r.ack) { r.st = "dup"; r.fix = "ack"; r.why = `Looks like the ${fmtD(near.d)} trade synced from Parqet.`; r.on = false; return; }
+    if (r.type === "SELL" && !r.ack) {
+      const inLedger = P.ledger.filter(l => l.account === r.account && l.isin === r.isin)
+        .reduce((n, l) => n + (l.type === "BUY" ? l.shares : l.type === "SELL" ? -l.shares : 0), 0);
+      const inReview = rows.filter(o => o !== r && o.type === "BUY" && o.isin === r.isin && o.date <= r.date && o.st === "new").reduce((n, o) => n + o.shares, 0);
+      if (inLedger + inReview + 1e-6 < r.shares) {
+        r.st = "attn"; r.fix = "ack"; r.on = false;
+        r.why = `No earlier purchase of ${r.display} on flatex.at. Add the buy statement too, or this sale shows as a short position.`;
+        return;
+      }
+    }
+    for (const w of r.issues.filter(x => x.level === "warning")) r.why += (r.why ? " " : "") + w.message;
+    r.st = "new"; if (r.on === undefined || r.on === false && !r.userOff) r.on = true;
+  });
+}
 const icount = rows => ({ all: rows.length, new: rows.filter(r => r.st === "new").length, dup: rows.filter(r => r.st === "dup").length,
-  attn: rows.filter(r => r.st === "attn").length, on: rows.filter(r => r.on).length });
+  attn: rows.filter(r => r.st === "attn").length, on: rows.filter(r => r.on && r.st === "new").length });
+
+function commitImport() {
+  const sel = S.imp.rows.filter(r => r.on && r.st === "new");
+  const id = "batch-" + Date.now();
+  P.ledger.push(...sel.map(r => ({
+    d: r.date, type: r.type, name: r.display, isin: r.isin, shares: r.shares,
+    price: r.gross / r.shares, priceNative: r.price, priceCcy: r.priceCcy, fx: r.fx,
+    gross: r.gross, fee: r.fee, tax: r.tax, net: r.net, realized: r.realized,
+    source: r.source, account: r.account, txNo: r.txNo, batch: id,
+  })));
+  P.ledger.sort((m, n) => n.d.localeCompare(m.d));
+  const files = S.imp.files.filter(f => f.status === "ok" && sel.some(r => r.fileHash === f.hash)).map(f => ({ name: f.name, hash: f.hash }));
+  S.batches.unshift({ id, at: new Date().toISOString(), files, count: sel.length, source: sel[0]?.source || "file" });
+  S.imp = { step: "done", batch: id, count: sel.length };
+}
+function undoBatch(id) {
+  const b = S.batches.find(x => x.id === id); if (!b) return;
+  P.ledger = P.ledger.filter(l => l.batch !== id);
+  S.batches = S.batches.filter(x => x.id !== id);
+  if (S.imp?.batch === id) S.imp = null;
+  toast(`Import undone: ${b.count} transaction${b.count === 1 ? "" : "s"} removed in one step.`);
+}
+
+function reviewRow(r) {
+  const kind = r.type === "BUY" ? "Buy" : "Sell";
+  const px = r.priceCcy === "EUR" ? eur(r.price) : `${nf2.format(r.price)}${NB}${r.priceCcy}`;
+  const canTick = r.st === "new";
+  return `<div class="rcard" data-st="${r.st}">
+    <input type="checkbox" class="cbx" id="irow-${r.id}" data-irow="${r.id}" ${r.on && canTick ? "checked" : ""} ${canTick ? "" : "disabled"} aria-label="Include ${esc(r.display)} ${kind.toLowerCase()} on ${fmtD(r.date)}">
+    <span class="t"><span class="rtop"><b>${esc(r.display)}</b><span class="a t-body-m ${r.net > 0 ? "pos" : ""}">${eurS(r.net)}</span></span>
+      <span class="t-body-s">${kind} · <span class="nw">${fmtD(r.date)}${r.time ? ", " + r.time : ""}</span>${r.venue ? ` · ${esc(r.venue)}` : ""}</span>
+      <span class="t-body-s"><span class="mono nw">${r.isin}</span> · <span class="nw">${nfq.format(r.shares)} @ ${px}</span>${r.priceCcy !== "EUR" ? ` · <span class="nw">FX ${nfq.format(r.fx)}</span>` : ""}</span>
+      <span class="t-body-s">Value <span class="nw">${eur(r.gross)}</span> · fees <span class="nw">${eur(r.fee)}</span> · KESt <span class="nw">${eur(r.tax)}</span>${r.type === "SELL" && r.realized != null ? ` · gain <span class="nw">${eurS(r.realized)}</span>` : ""}</span>
+      ${r.why ? `<span class="t-body-s issue">${r.st !== "new" ? ms("warning") : ms(ICON.info)}<span>${esc(r.why)}</span></span>` : ""}</span>
+    ${r.fix === "ack" ? `<div class="fix"><button class="cand sl" data-ack="${r.id}"><b>Import anyway</b><span class="m t-label-l">I've checked it</span></button></div>` : ""}
+  </div>`;
+}
 
 function vImport() {
   const sync = P.sync, bad = (sync.reconcile || []).filter(c => !c.ok);
@@ -853,56 +1000,50 @@ function vImport() {
     </section>`;
 
   const I = S.imp;
-  let flow = "";
+  let flow;
   if (!I) {
-    flow = `<div class="list">${BROKERS.map(b => `<button class="broker sl" data-broker="${b.k}" style="--c:${b.c}">
-        <span class="bt" aria-hidden="true">${b.n.slice(0, 2).toUpperCase()}</span><span><b>${b.n}</b><span class="d t-body-s">${b.s}</span></span>${ms(ICON.chev)}</button>`).join("")}</div>
-      <p class="muted t-body-m">Pick a broker to walk through the import flow with an example file. Nothing touches your ledger.</p>`;
-  } else {
-    const b = BROKERS.find(x => x.k === I.broker), c = icount(I.rows);
-    const names = ["File", "Map", "Review", "Done"];
-    const steps = `<ol class="steps t-label-l">${names.map((n, i) => `${i ? '<li aria-hidden="true"><span class="sep"></span></li>' : ""}<li class="${I.step === i + 1 ? "on" : I.step > i + 1 ? "done" : ""}"${I.step === i + 1 ? ' aria-current="step"' : ""}><i>${I.step > i + 1 ? ms("check") : i + 1}</i>${n}</li>`).join("")}</ol>`;
-    let body = "";
-    if (I.step === 1) body = `<div class="list"><div class="filerow">${ms("description")}<span><span class="fn" data-wrap-ok>${b.file}</span>
-          <span class="d t-body-s muted" style="display:block">${b.ad ? `${b.ad} · 96% confidence · Windows-1252 · 9 rows` : "No adapter matched. Map the columns once and it becomes a saved profile."}</span></span></div></div>
-        <div class="btnrow"><button class="btn outlined sl" data-imp="cancel">Cancel</button><button class="btn filled sl" data-imp="2">${b.ad ? "Check mapping" : "Map columns"}</button></div>`;
-    if (I.step === 2) body = `<div class="rawprev"><pre>Buchungstag;Valuta;Text;ISIN;Stück;Kurs;Spesen;KESt;Betrag
-02.07.2026;04.07.2026;Kauf Sparplan;IE00BK5BQT80;12,4831;121,03;1,50;0,00;-1.512,30
-04.07.2026;04.07.2026;Dividende;AT0000743059;;;0,00;39,05;102,95</pre></div>
-        <div class="fmt t-body-m"><b>Preview</b><span><span class="mono">1.512,30</span> → <span class="mono">1512.30</span></span><span><span class="mono">02.07.2026</span> → <span class="mono">2026-07-02</span></span></div>
-        <div class="mapgrid">${[["Execution date", "Buchungstag"], ["Settlement date", "Valuta"], ["Type", "Text"], ["ISIN", "ISIN"], ["Quantity", "Stück"], ["Fee", "Spesen"], ["Tax (KESt)", "KESt"], ["Net amount", "Betrag"]]
-          .map(([k, v]) => `<div class="maprow"><label class="t-body-m" for="map-${v}">${k}</label><select id="map-${v}"><option>${v}</option><option>— not mapped —</option></select></div>`).join("")}
-          <div class="maprow"><label class="t-body-m" for="fmt-dec">Number format</label><select id="fmt-dec"><option>1.234,56 (AT/DE)</option><option>1,234.56 (US/UK)</option></select></div>
-        </div>
-        <div class="btnrow"><button class="btn outlined sl" data-imp="1">Back</button><button class="btn filled sl" data-imp="3">Parse 9 rows</button></div>`;
-    if (I.step === 3) {
-      const shown = I.rows.filter(r => I.filter === "all" || r.st === I.filter);
-      body = `<div class="chips wrap t-label-l">${[["all", "All"], ["new", "New"], ["dup", "Duplicates"], ["attn", "Needs attention"]]
+    flow = `<div class="drop" data-drop>
+        <span class="ms" aria-hidden="true">upload_file</span>
+        <b class="t-title-m">Add broker statements</b>
+        <span class="t-body-m muted">Drop PDFs here, or pick them from your phone.</span>
+        <button class="btn filled sl" data-pick="1">${ms("add")}Choose files</button>
+        <input type="file" id="filePick" class="vh" accept=".pdf,application/pdf,.csv,text/csv,.xlsx" multiple tabindex="-1" aria-hidden="true">
+        <span class="t-body-s muted">${ms("lock")}Read on this device. Nothing is uploaded.</span>
+      </div>
+      <div class="list">${SUPPORTED.map(([b, what, ok]) => `<div class="recon-row">
+          <span class="ms ${ok ? "pos" : ""}" aria-hidden="true">${ok ? "check" : "remove"}</span>
+          <span><b>${b}</b><span class="d t-body-s">${what}${ok ? "" : " · not yet, send a sample file"}</span></span></div>`).join("")}</div>`;
+  } else if (I.step === "review") {
+    const c = icount(I.rows), busy = I.files.some(f => f.status === "reading" || f.status === "parsing");
+    const shown = I.rows.filter(r => I.filter === "all" || r.st === I.filter);
+    flow = `<div class="list">${I.files.map(f => `<div class="filerow">
+          <span class="ms ${f.status === "ok" ? "pos" : f.status === "error" ? "neg" : ""}" aria-hidden="true">${f.status === "ok" ? "picture_as_pdf" : f.status === "error" ? "error" : f.status === "skip" ? "remove" : "sync"}</span>
+          <span><span class="fn" data-wrap-ok>${fileLabel(f.name)}</span>
+          <span class="d t-body-s muted" style="display:block">${
+            f.status === "reading" ? "Reading…" : f.status === "parsing" ? "Extracting text…"
+            : f.status === "ok" ? `${esc(f.parser)} · ${esc(f.docType || "")} · ${f.count} transaction${f.count === 1 ? "" : "s"}`
+            : esc(f.message || "")}</span></span></div>`).join("")}</div>
+      ${I.rows.length ? `<div class="chips wrap t-label-l">${[["all", "All"], ["new", "New"], ["dup", "Duplicates"], ["attn", "Needs attention"]]
           .map(([k, l]) => `<button class="fchip sl" data-ifilter="${k}" aria-pressed="${I.filter === k}">${I.filter === k ? ms("check") : ""}${l}<span class="ct">${c[k]}</span></button>`).join("")}</div>
-        <div class="list">${shown.map(r => `<div class="rcard" data-st="${r.st}">
-          <input type="checkbox" class="cbx" id="irow-${r.i}" data-irow="${r.i}" ${r.on ? "checked" : ""} ${r.st === "attn" ? "disabled" : ""} aria-label="Include ${esc(r.s)} on ${r.d}">
-          <span class="t"><span class="rtop"><b>${esc(r.s)}</b><span class="a t-body-m ${r.net > 0 ? "pos" : ""}">${eurS(r.net)}</span></span>
-            <span class="t-body-s">${fmtD(r.d)} · ${r.t}${r.lbl ? " · " + esc(r.lbl) : ""}</span>
-            ${r.isin ? `<span class="t-body-s"><span class="mono nw">${r.isin}</span>${r.q ? ` · <span class="nw">${r.q}</span>` : ""}</span>` : ""}
-            ${r.tax ? `<span class="t-body-s">gross <span class="nw">${eur(r.gross)}</span> · KESt <span class="nw">${eur(r.tax)}</span></span>` : ""}
-            ${r.issue ? `<span class="t-body-s issue">${r.st === "attn" ? ms("warning") : ""}<span>${esc(r.issue)}</span></span>` : ""}</span>
-          ${r.st === "attn" ? `<div class="fix">${r.fix === "isin"
-            ? `<button class="cand sl" data-fix="${r.i}" data-c="MSFT · Nasdaq · USD"><b>Microsoft</b><span class="mono t-body-s">MSFT · Nasdaq · USD</span><span class="m t-label-l">98%</span></button>
-               <button class="cand sl" data-fix="${r.i}" data-c="MSF · Xetra · EUR"><b>Microsoft</b><span class="mono t-body-s">MSF · Xetra · EUR</span><span class="m t-label-l">91%</span></button>`
-            : `<button class="cand sl" data-fix="${r.i}" data-c="tax"><b>Import as tax charge</b><span class="m t-label-l">keeps cash right</span></button>`}</div>` : ""}
-        </div>`).join("")}</div>
-        <div class="btnrow"><button class="btn outlined sl" data-imp="2">Back</button><button class="btn filled sl" data-imp="commit" ${c.on ? "" : "disabled"}>Import ${c.on}</button></div>`;
-    }
-    if (I.step === 4) body = `<div class="donebox"><span class="ms fill" aria-hidden="true">check_circle</span>
-        <b class="t-title-l">${I.done} transactions imported</b>
-        <p class="t-body-m">Example only. Your ledger is unchanged. A real import is one batch you can undo at any time.</p></div>
-        <div class="btnrow"><button class="btn outlined sl" data-imp="undo">${ms("undo")}Undo import</button><button class="btn filled sl" data-imp="cancel">Done</button></div>`;
-    flow = steps + body;
+        <div class="list">${shown.map(reviewRow).join("") || `<div class="empty">Nothing in this filter.</div>`}</div>` : ""}
+      <div class="btnrow"><button class="btn outlined sl" data-imp="cancel">Cancel</button>
+        <button class="btn filled sl" data-imp="commit" ${c.on && !busy ? "" : "disabled"}>${busy ? "Reading…" : `Import ${c.on}`}</button></div>`;
+  } else {
+    flow = `<div class="donebox"><span class="ms fill" aria-hidden="true">check_circle</span>
+        <b class="t-title-l">${I.count} transaction${I.count === 1 ? "" : "s"} imported</b>
+        <p class="t-body-m">Added to Activity as one batch. Undo removes the whole batch at once. In this prototype imports live until you reload the page.</p></div>
+      <div class="btnrow"><button class="btn outlined sl" data-undo="${I.batch}">${ms("undo")}Undo import</button><a class="btn tonal sl" href="#activity" data-goact="1">View in Activity</a>
+        <button class="btn filled sl" data-imp="cancel">Import more</button></div>`;
   }
+  const history = S.batches.length ? `<section class="sec"><div class="sechead"><h2 class="t-title-l">Import history</h2><span class="sub t-body-m">each batch can be undone</span></div>
+      <div class="list">${S.batches.map(x => `<div class="recon-row"><span class="ms" aria-hidden="true">picture_as_pdf</span>
+        <span><b>${x.count} from ${esc(x.source)}</b><span class="d t-body-s" data-wrap-ok>${x.files.map(f => fileLabel(f.name)).join(", ")} · ${fmtTime(x.at)}</span></span>
+        <button class="btn text sl" data-undo="${x.id}">Undo</button></div>`).join("")}</div></section>` : "";
   return `
   <p class="lead-p t-body-l">Connected sources sync automatically. Broker files go through review first, so nothing reaches the ledger unseen.</p>
-  ${sourceSec}
-  <section class="sec"><div class="sechead"><h2 class="t-title-l">Import a file</h2>${I ? `<span class="tag warn act">Example</span>` : `<span class="sub t-body-m">CSV · XLSX · PDF</span>`}</div>${flow}</section>`;
+  <section class="sec" id="fileImport"><div class="sechead"><h2 class="t-title-l">Import a file</h2><span class="sub t-body-m">PDF statements</span></div>${flow}</section>
+  ${history}
+  ${sourceSec}`;
 }
 
 /* ============================== more ============================== */
@@ -1000,26 +1141,26 @@ view.addEventListener("click", e => {
   if ((el = q("[data-theme-set]"))) { applyTheme(el.dataset.themeSet); return render(); }
   if ((el = q("[data-sync]"))) return toast("Ask Claude to “sync Parqet”. It captures fresh payloads and runs tools/parqet-import, then this page shows the new snapshot.");
   if ((el = q("[data-howsync]"))) return toast("Parqet → raw payloads (gitignored) → convert.mjs rebuilds lots, applies splits, reconciles → portfolio.local.js.");
-  if ((el = q("[data-broker]"))) { S.imp = newImport(el.dataset.broker); return render(); }
+  if ((el = q("[data-pick]"))) { document.getElementById("filePick")?.click(); return; }
   if ((el = q("[data-ifilter]"))) { S.imp.filter = el.dataset.ifilter; return render(); }
-  if ((el = q("[data-fix]"))) {
-    const r = S.imp.rows.find(x => x.i === +el.dataset.fix), c = el.dataset.c;
-    if (c === "tax") r.issue = "Recorded as a tax charge"; else { r.s = "Microsoft"; r.issue = "Linked to " + c; }
-    r.st = "new"; r.on = true; r.fix = null; return render();
-  }
+  if ((el = q("[data-ack]"))) { const r = S.imp.rows.find(x => x.id === el.dataset.ack); r.ack = true; r.on = true; classify(); return render(); }
+  if ((el = q("[data-undo]"))) { undoBatch(el.dataset.undo); return render(); }
+  if ((el = q("[data-goact]"))) { S.afilter = "all"; S.apage = 60; S.imp = null; return; }
   if ((el = q("[data-imp]"))) {
     const a = el.dataset.imp;
     if (a === "cancel") S.imp = null;
-    else if (a === "commit") { S.imp.done = icount(S.imp.rows).on; S.imp.step = 4; }
-    else if (a === "undo") { const b = S.imp.broker; S.imp = newImport(b); S.imp.step = 3; toast("Import undone. The batch was removed in one step."); }
-    else S.imp.step = +a;
+    else if (a === "commit") commitImport();
     return render();
   }
 });
 view.addEventListener("change", e => {
+  if (e.target.id === "filePick") { handleFiles(e.target.files); return; }
   const r = e.target.closest("[data-irow]");
-  if (r) { S.imp.rows.find(x => x.i === +r.dataset.irow).on = r.checked; render(); }
+  if (r) { const row = S.imp.rows.find(x => x.id === r.dataset.irow); row.on = r.checked; row.userOff = !r.checked; render(); }
 });
+view.addEventListener("dragover", e => { const d = e.target.closest("[data-drop]"); if (d) { e.preventDefault(); d.classList.add("over"); } });
+view.addEventListener("dragleave", e => { const d = e.target.closest("[data-drop]"); if (d && !d.contains(e.relatedTarget)) d.classList.remove("over"); });
+view.addEventListener("drop", e => { const d = e.target.closest("[data-drop]"); if (d) { e.preventDefault(); handleFiles(e.dataTransfer.files); } });
 document.getElementById("themeBtn").addEventListener("click", () => {
   const dark = root.getAttribute("data-theme") === "dark" || (!root.hasAttribute("data-theme") && sysDark());
   applyTheme(dark ? "light" : "dark"); if (S.view === "more") render();

@@ -13,6 +13,7 @@ what you hold today and how the portfolio got there.
 | [docs/deployment-portability.md](docs/deployment-portability.md) | Running the same codebase locally *and* on a serverless host (Netlify + managed Postgres) — the five seams, the rules that keep them intact, and the privacy trade-off |
 | [prototype/index.html](prototype/index.html) | Mobile-first clickable prototype — overview, holdings with lot drill-down, activity ledger, import flow, settings. Open the file in a browser; no build step |
 | [tools/parqet-import/](tools/parqet-import/) | Parqet → snapshot converter: rebuilds lots from raw activities, applies splits, reconciles against Parqet |
+| [prototype/importers/](prototype/importers/) | In-browser broker statement parsers (flatex.at PDF) with tests: `node --test prototype/importers/*.test.mjs` |
 
 ## Scope decided for v1
 

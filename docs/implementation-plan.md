@@ -365,7 +365,7 @@ than usual here, and it is not the obvious one.
 | 2 | `flatex-at-csv` | **flatex.at** transaction export | CSV | Ongoing imports; the bulk of new activity |
 | 3 | `dadat-csv` | **DADAT / dad.at** Umsatzliste | CSV/XLSX | Ongoing imports |
 | 4 | `generic-tabular` | anything else | CSV/XLSX | The column mapper; also the escape hatch when 1–3 hit an unknown layout |
-| 5 | `flatex-at-pdf` | flatex Abrechnungen | PDF | Gap-filling for anything the CSV export omits or truncates |
+| 5 | `flatex-at-pdf` | flatex Abrechnungen | PDF | **Built** ([`prototype/importers/flatex-at-pdf.js`](../prototype/importers/flatex-at-pdf.js)) — buy/sell statements and Sammelabrechnungen, verified against real statements |
 | 6 | `dadat-pdf` | DADAT Abrechnungen | PDF | As above |
 
 **Parqet first, and it changes the schedule.** You already have a populated portfolio in
@@ -453,7 +453,35 @@ summary over its own ledger. The first real import showed why this is not option
 `imports/` and in `*.local.js`, both gitignored. In serverless mode the same
 parse-then-discard rule as broker PDFs applies to raw payloads.
 
-### 4.4 Parqet export notes
+### 4.4 flatex.at PDF statements (built)
+
+The first adapter written against real files. It runs entirely in the browser: pdf.js
+extracts positioned text on the device, the parser turns it into canonical transactions,
+and nothing is uploaded. The same parser module runs under Node for tests.
+
+- **Two layouts, one parser.** *Wertpapierabrechnung Kauf/Verkauf* (one order) and
+  *Sammelabrechnung* (one or more orders) share field labels but not positions or date
+  fields (`Handelstag` + `Ausführungszeit` vs. `Schlusstag …, hh:mm Uhr`). The parser
+  segments by order header (`Nr.<order>/<part> Kauf|Verkauf <name> (<ISIN>/<WKN>)`) and reads
+  `label : value` pairs per block, so a multi-order statement yields one row per order.
+- **Every row is self-checked.** Kurswert ± (Provision + eigene + fremde Spesen) ± KESt must
+  equal the Endbetrag, and shares × price ÷ Devisenkurs must equal the Kurswert. Both real
+  statements reconcile to the cent; a mismatch is shown on the row, never corrected.
+- **Foreign-currency trades carry the FX rate** the broker applied; the native price is
+  kept alongside the EUR value. **KESt and the realised gain** come straight off the
+  statement (`Einbeh. KESt` / `Einbeh. Steuer`, `Gewinn/Verlust`).
+- **Review rules:** exact file re-imports are caught by hash; trades already in the ledger
+  (broker transaction number, or same account/date/ISIN/shares/amount) are duplicates; a
+  trade within three days that matches a Parqet-synced one is a *possible* duplicate that
+  needs confirmation; a sale with no prior purchase in that account needs confirmation.
+- **Unsupported flatex documents** (dividends, account statements) are refused explicitly
+  rather than half-parsed. Dividend notices are the next document type to add — they need a
+  sample statement first.
+- **Fixtures:** the committed fixtures keep a real statement's exact layout with every
+  personal and financial value replaced. Tests against the real statements run only where
+  those files exist locally (gitignored).
+
+### 4.5 Parqet export notes
 
 Parqet's export is already close to canonical: one row per transaction with ISIN, type,
 date, quantity, price, fee, tax, total and the originating broker/portfolio. Two things

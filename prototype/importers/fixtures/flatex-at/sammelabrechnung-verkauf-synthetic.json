@@ -1,0 +1,1289 @@
+{
+"_note": "Synthetic: real flatex.at layout (item positions from a genuine statement), every personal and financial value replaced with fictional data.",
+"pages": [
+[
+{
+"str": "flatex Bank AG",
+"x": 493,
+"y": 753
+},
+{
+"str": "Kundenservice",
+"x": 493,
+"y": 746
+},
+{
+"str": "Opernring 1 / Top 736",
+"x": 472,
+"y": 740
+},
+{
+"str": "1010 Wien",
+"x": 506,
+"y": 733
+},
+{
+"str": "Tel.: +43 - (0)720 518 777",
+"x": 459,
+"y": 726
+},
+{
+"str": "Mail: info@flatex.at",
+"x": 480,
+"y": 719
+},
+{
+"str": "flatex Bank AG - Opernring 1 / Top 736 - A-1010 Wien",
+"x": 71,
+"y": 702
+},
+{
+"str": "0000000000000000000002",
+"x": 113,
+"y": 675
+},
+{
+"str": "Herrn",
+"x": 71,
+"y": 663
+},
+{
+"str": "Max Mustermann",
+"x": 71,
+"y": 653
+},
+{
+"str": "Musterstraße 1",
+"x": 71,
+"y": 643
+},
+{
+"str": "1010 Wien",
+"x": 71,
+"y": 632
+},
+{
+"str": "ÖSTERREICH",
+"x": 71,
+"y": 622
+},
+{
+"str": "Wien, den 18.06.2024",
+"x": 400,
+"y": 615
+},
+{
+"str": "Sammelabrechnung",
+"x": 71,
+"y": 550
+},
+{
+"str": "(Wertpapierkauf/-verkauf)",
+"x": 175,
+"y": 550
+},
+{
+"str": "Ihre",
+"x": 71,
+"y": 524
+},
+{
+"str": "Depotnummer:",
+"x": 101,
+"y": 524
+},
+{
+"str": "12345678901",
+"x": 181,
+"y": 524
+},
+{
+"str": "Depotinhaber:",
+"x": 71,
+"y": 512
+},
+{
+"str": "Max",
+"x": 181,
+"y": 512
+},
+{
+"str": "Mustermann",
+"x": 242,
+"y": 512
+},
+{
+"str": "Nr.100000002/1",
+"x": 71,
+"y": 487
+},
+{
+"str": "Verkauf",
+"x": 181,
+"y": 487
+},
+{
+"str": "MICROSOFT",
+"x": 316,
+"y": 487
+},
+{
+"str": "CORP.",
+"x": 371,
+"y": 487
+},
+{
+"str": "(US5949181045/870747)",
+"x": 420,
+"y": 487
+},
+{
+"str": "Ordervolumen",
+"x": 71,
+"y": 474
+},
+{
+"str": ":",
+"x": 157,
+"y": 474
+},
+{
+"str": "5,00",
+"x": 169,
+"y": 474
+},
+{
+"str": "St.",
+"x": 199,
+"y": 474
+},
+{
+"str": "Handelsplatz",
+"x": 316,
+"y": 474
+},
+{
+"str": ":",
+"x": 401,
+"y": 474
+},
+{
+"str": "NASDAQ",
+"x": 524,
+"y": 474
+},
+{
+"str": "davon",
+"x": 71,
+"y": 461
+},
+{
+"str": "ausgef.",
+"x": 108,
+"y": 461
+},
+{
+"str": ":",
+"x": 157,
+"y": 461
+},
+{
+"str": "5,00",
+"x": 169,
+"y": 461
+},
+{
+"str": "St.",
+"x": 199,
+"y": 461
+},
+{
+"str": "Schlusstag",
+"x": 316,
+"y": 461
+},
+{
+"str": ":",
+"x": 401,
+"y": 461
+},
+{
+"str": "18.06.2024,",
+"x": 420,
+"y": 461
+},
+{
+"str": "17:42",
+"x": 493,
+"y": 461
+},
+{
+"str": "Uhr",
+"x": 530,
+"y": 461
+},
+{
+"str": "0000000000000004",
+"x": 53,
+"y": 451
+},
+{
+"str": "Kurs",
+"x": 71,
+"y": 449
+},
+{
+"str": ":",
+"x": 157,
+"y": 449
+},
+{
+"str": "180,0000",
+"x": 169,
+"y": 449
+},
+{
+"str": "USD",
+"x": 224,
+"y": 449
+},
+{
+"str": "Kurswert",
+"x": 316,
+"y": 449
+},
+{
+"str": ":",
+"x": 401,
+"y": 449
+},
+{
+"str": "825,69",
+"x": 475,
+"y": 449
+},
+{
+"str": "EUR",
+"x": 530,
+"y": 449
+},
+{
+"str": "Devisenkurs",
+"x": 71,
+"y": 436
+},
+{
+"str": ":",
+"x": 157,
+"y": 436
+},
+{
+"str": "1,090000",
+"x": 169,
+"y": 436
+},
+{
+"str": "Provision",
+"x": 316,
+"y": 436
+},
+{
+"str": ":",
+"x": 401,
+"y": 436
+},
+{
+"str": "15,90",
+"x": 493,
+"y": 436
+},
+{
+"str": "EUR",
+"x": 530,
+"y": 436
+},
+{
+"str": "Bew-Faktor",
+"x": 71,
+"y": 423
+},
+{
+"str": ":",
+"x": 157,
+"y": 423
+},
+{
+"str": "1,0000",
+"x": 169,
+"y": 423
+},
+{
+"str": "Eigene",
+"x": 316,
+"y": 423
+},
+{
+"str": "Spesen",
+"x": 359,
+"y": 423
+},
+{
+"str": ":",
+"x": 401,
+"y": 423
+},
+{
+"str": "Verwahrart",
+"x": 71,
+"y": 411
+},
+{
+"str": ":",
+"x": 157,
+"y": 411
+},
+{
+"str": "Wertpapierrechnung",
+"x": 169,
+"y": 411
+},
+{
+"str": "*Fremde",
+"x": 310,
+"y": 411
+},
+{
+"str": "Spesen",
+"x": 359,
+"y": 411
+},
+{
+"str": ":",
+"x": 401,
+"y": 411
+},
+{
+"str": "0,02",
+"x": 499,
+"y": 411
+},
+{
+"str": "EUR",
+"x": 530,
+"y": 411
+},
+{
+"str": "Lagerstelle",
+"x": 71,
+"y": 398
+},
+{
+"str": ":",
+"x": 157,
+"y": 398
+},
+{
+"str": "International",
+"x": 169,
+"y": 398
+},
+{
+"str": "Lagerland",
+"x": 71,
+"y": 385
+},
+{
+"str": ":",
+"x": 157,
+"y": 385
+},
+{
+"str": "USA",
+"x": 169,
+"y": 385
+},
+{
+"str": "**Einbeh.",
+"x": 303,
+"y": 385
+},
+{
+"str": "Steuer:",
+"x": 365,
+"y": 385
+},
+{
+"str": "57,75",
+"x": 487,
+"y": 385
+},
+{
+"str": "EUR",
+"x": 530,
+"y": 385
+},
+{
+"str": "Gewinn/Verlust:",
+"x": 71,
+"y": 373
+},
+{
+"str": "210,00",
+"x": 169,
+"y": 373
+},
+{
+"str": "EUR",
+"x": 212,
+"y": 373
+},
+{
+"str": "Valuta",
+"x": 71,
+"y": 360
+},
+{
+"str": ":",
+"x": 157,
+"y": 360
+},
+{
+"str": "20.06.2024",
+"x": 169,
+"y": 360
+},
+{
+"str": "Endbetrag",
+"x": 316,
+"y": 360
+},
+{
+"str": ":",
+"x": 401,
+"y": 360
+},
+{
+"str": "752,02",
+"x": 487,
+"y": 360
+},
+{
+"str": "EUR",
+"x": 530,
+"y": 360
+},
+{
+"str": "*",
+"x": 71,
+"y": 335
+},
+{
+"str": "Enthalten",
+"x": 95,
+"y": 335
+},
+{
+"str": "sind",
+"x": 157,
+"y": 335
+},
+{
+"str": "folgende",
+"x": 187,
+"y": 335
+},
+{
+"str": "Gebühren",
+"x": 242,
+"y": 335
+},
+{
+"str": "Courtage",
+"x": 267,
+"y": 322
+},
+{
+"str": ":",
+"x": 414,
+"y": 322
+},
+{
+"str": "0,00",
+"x": 499,
+"y": 322
+},
+{
+"str": "EUR",
+"x": 530,
+"y": 322
+},
+{
+"str": "Tradinggebühr",
+"x": 267,
+"y": 310
+},
+{
+"str": ":",
+"x": 414,
+"y": 310
+},
+{
+"str": "0,00",
+"x": 499,
+"y": 310
+},
+{
+"str": "EUR",
+"x": 530,
+"y": 310
+},
+{
+"str": "Regulierung",
+"x": 267,
+"y": 297
+},
+{
+"str": ":",
+"x": 414,
+"y": 297
+},
+{
+"str": "0,00",
+"x": 499,
+"y": 297
+},
+{
+"str": "EUR",
+"x": 530,
+"y": 297
+},
+{
+"str": "Schlussnoten",
+"x": 267,
+"y": 284
+},
+{
+"str": ":",
+"x": 414,
+"y": 284
+},
+{
+"str": "0,00",
+"x": 499,
+"y": 284
+},
+{
+"str": "EUR",
+"x": 530,
+"y": 284
+},
+{
+"str": "Finanztransaktionssteuer:",
+"x": 267,
+"y": 272
+},
+{
+"str": "0,00",
+"x": 499,
+"y": 272
+},
+{
+"str": "EUR",
+"x": 530,
+"y": 272
+},
+{
+"str": "Sonstige",
+"x": 267,
+"y": 259
+},
+{
+"str": ":",
+"x": 414,
+"y": 259
+},
+{
+"str": "0,02",
+"x": 499,
+"y": 259
+},
+{
+"str": "EUR",
+"x": 530,
+"y": 259
+},
+{
+"str": "**",
+"x": 71,
+"y": 234
+},
+{
+"str": "Einbehaltene",
+"x": 95,
+"y": 234
+},
+{
+"str": "Kapitalertragsteuer.",
+"x": 175,
+"y": 234
+},
+{
+"str": "Details",
+"x": 303,
+"y": 234
+},
+{
+"str": "dazu",
+"x": 352,
+"y": 234
+},
+{
+"str": "finden",
+"x": 383,
+"y": 234
+},
+{
+"str": "Sie",
+"x": 426,
+"y": 234
+},
+{
+"str": "im",
+"x": 450,
+"y": 234
+},
+{
+"str": "Steuerreport",
+"x": 469,
+"y": 234
+},
+{
+"str": "unter",
+"x": 95,
+"y": 221
+},
+{
+"str": "der",
+"x": 132,
+"y": 221
+},
+{
+"str": "Transaktion-Nr.: 9000000002.",
+"x": 157,
+"y": 221
+},
+{
+"str": "Die",
+"x": 71,
+"y": 183
+},
+{
+"str": "Verrechnung",
+"x": 95,
+"y": 183
+},
+{
+"str": "der",
+"x": 169,
+"y": 183
+},
+{
+"str": "Endbeträge erfolgt",
+"x": 193,
+"y": 183
+},
+{
+"str": "über",
+"x": 310,
+"y": 183
+},
+{
+"str": "Ihr",
+"x": 340,
+"y": 183
+},
+{
+"str": "Konto",
+"x": 365,
+"y": 183
+},
+{
+"str": "Nr.:",
+"x": 401,
+"y": 183
+},
+{
+"str": "12345678900",
+"x": 432,
+"y": 183
+},
+{
+"str": "0000000000000006",
+"x": 53,
+"y": 122
+},
+{
+"str": "______________________________________________________________________________",
+"x": 71,
+"y": 95
+},
+{
+"str": "Seite",
+"x": 493,
+"y": 70
+},
+{
+"str": "1/2",
+"x": 530,
+"y": 70
+},
+{
+"str": "flatex Bank AG Niederlassung Österreich | Aktiengesellschaft | Opernring 1 / Top 736 | 1010 Wien | Handelsgericht Wien | FN 334642 x | DVR 4000544 | UID ATU 65140956",
+"x": 76,
+"y": 41
+},
+{
+"str": "Hauptniederlassung: flatex Bank AG | Rotfeder-Ring 7 | 60327 Frankfurt am Main (Deutschland) | Amtsgericht Frankfurt am Main | HRB 105687",
+"x": 112,
+"y": 32
+},
+{
+"str": "- Vorsitzender des Aufsichtsrats: Martin Korbmacher | Vorstand: Frank Niehage (Vors.), Jörn Engelmann, Steffen Jentsch -",
+"x": 141,
+"y": 24
+}
+],
+[
+{
+"str": "Die",
+"x": 68,
+"y": 716
+},
+{
+"str": "Wertpapiere",
+"x": 93,
+"y": 716
+},
+{
+"str": "sowie",
+"x": 166,
+"y": 716
+},
+{
+"str": "den",
+"x": 203,
+"y": 716
+},
+{
+"str": "Gegenwert",
+"x": 227,
+"y": 716
+},
+{
+"str": "werden",
+"x": 288,
+"y": 716
+},
+{
+"str": "wir",
+"x": 331,
+"y": 716
+},
+{
+"str": "entsprechend",
+"x": 356,
+"y": 716
+},
+{
+"str": "der",
+"x": 435,
+"y": 716
+},
+{
+"str": "Abrechnung",
+"x": 460,
+"y": 716
+},
+{
+"str": "mit",
+"x": 527,
+"y": 716
+},
+{
+"str": "dem",
+"x": 68,
+"y": 703
+},
+{
+"str": "angegebenen",
+"x": 99,
+"y": 703
+},
+{
+"str": "Valutatag",
+"x": 178,
+"y": 703
+},
+{
+"str": "buchen.",
+"x": 246,
+"y": 703
+},
+{
+"str": "Bitte",
+"x": 301,
+"y": 703
+},
+{
+"str": "prüfen",
+"x": 337,
+"y": 703
+},
+{
+"str": "Sie",
+"x": 380,
+"y": 703
+},
+{
+"str": "diese",
+"x": 411,
+"y": 703
+},
+{
+"str": "Abrechnung",
+"x": 454,
+"y": 703
+},
+{
+"str": "auf",
+"x": 527,
+"y": 703
+},
+{
+"str": "Richtigkeit",
+"x": 68,
+"y": 690
+},
+{
+"str": "und",
+"x": 141,
+"y": 690
+},
+{
+"str": "Vollständigkeit.",
+"x": 166,
+"y": 690
+},
+{
+"str": "Etwaige",
+"x": 276,
+"y": 690
+},
+{
+"str": "Einwendungen",
+"x": 325,
+"y": 690
+},
+{
+"str": "gegen",
+"x": 405,
+"y": 690
+},
+{
+"str": "diese",
+"x": 441,
+"y": 690
+},
+{
+"str": "Abrechnung",
+"x": 484,
+"y": 690
+},
+{
+"str": "müssen",
+"x": 68,
+"y": 678
+},
+{
+"str": "unverzüglich",
+"x": 111,
+"y": 678
+},
+{
+"str": "nach",
+"x": 197,
+"y": 678
+},
+{
+"str": "Zugang",
+"x": 227,
+"y": 678
+},
+{
+"str": "bei",
+"x": 270,
+"y": 678
+},
+{
+"str": "der",
+"x": 294,
+"y": 678
+},
+{
+"str": "Bank",
+"x": 319,
+"y": 678
+},
+{
+"str": "erhoben",
+"x": 356,
+"y": 678
+},
+{
+"str": "werden.",
+"x": 405,
+"y": 678
+},
+{
+"str": "Die",
+"x": 454,
+"y": 678
+},
+{
+"str": "Unterlassung",
+"x": 68,
+"y": 665
+},
+{
+"str": "rechtzeitiger",
+"x": 148,
+"y": 665
+},
+{
+"str": "Einwendung",
+"x": 233,
+"y": 665
+},
+{
+"str": "gilt",
+"x": 301,
+"y": 665
+},
+{
+"str": "als",
+"x": 331,
+"y": 665
+},
+{
+"str": "Genehmigung.",
+"x": 356,
+"y": 665
+},
+{
+"str": "Bitte",
+"x": 435,
+"y": 665
+},
+{
+"str": "beachten",
+"x": 472,
+"y": 665
+},
+{
+"str": "Sie",
+"x": 68,
+"y": 652
+},
+{
+"str": "mögliche",
+"x": 93,
+"y": 652
+},
+{
+"str": "Hinweise",
+"x": 148,
+"y": 652
+},
+{
+"str": "des",
+"x": 203,
+"y": 652
+},
+{
+"str": "Emittenten",
+"x": 227,
+"y": 652
+},
+{
+"str": "hinsichtlich",
+"x": 301,
+"y": 652
+},
+{
+"str": "vorzeitiger",
+"x": 380,
+"y": 652
+},
+{
+"str": "Fälligstellung,",
+"x": 454,
+"y": 652
+},
+{
+"str": "beispielsweise",
+"x": 68,
+"y": 640
+},
+{
+"str": "wegen",
+"x": 160,
+"y": 640
+},
+{
+"str": "Knock-Out,",
+"x": 197,
+"y": 640
+},
+{
+"str": "in",
+"x": 264,
+"y": 640
+},
+{
+"str": "den",
+"x": 282,
+"y": 640
+},
+{
+"str": "jeweiligen",
+"x": 307,
+"y": 640
+},
+{
+"str": "Optionsscheinbedingungen",
+"x": 374,
+"y": 640
+},
+{
+"str": "und",
+"x": 527,
+"y": 640
+},
+{
+"str": "informieren",
+"x": 68,
+"y": 627
+},
+{
+"str": "Sie",
+"x": 141,
+"y": 627
+},
+{
+"str": "sich",
+"x": 166,
+"y": 627
+},
+{
+"str": "rechtzeitig,",
+"x": 197,
+"y": 627
+},
+{
+"str": "welche",
+"x": 276,
+"y": 627
+},
+{
+"str": "spezielle",
+"x": 319,
+"y": 627
+},
+{
+"str": "Fälligkeitsregelung",
+"x": 380,
+"y": 627
+},
+{
+"str": "auf",
+"x": 503,
+"y": 627
+},
+{
+"str": "die",
+"x": 527,
+"y": 627
+},
+{
+"str": "von",
+"x": 68,
+"y": 615
+},
+{
+"str": "Ihnen",
+"x": 93,
+"y": 615
+},
+{
+"str": "gehaltenen",
+"x": 129,
+"y": 615
+},
+{
+"str": "Wertpapiere",
+"x": 197,
+"y": 615
+},
+{
+"str": "zutreffen.",
+"x": 270,
+"y": 615
+},
+{
+"str": "Kapitalerträge",
+"x": 337,
+"y": 615
+},
+{
+"str": "sind",
+"x": 429,
+"y": 615
+},
+{
+"str": "ESt-pflichtig.",
+"x": 460,
+"y": 615
+},
+{
+"str": "Diese",
+"x": 68,
+"y": 589
+},
+{
+"str": "Mitteilung",
+"x": 111,
+"y": 589
+},
+{
+"str": "ist",
+"x": 184,
+"y": 589
+},
+{
+"str": "maschinell",
+"x": 215,
+"y": 589
+},
+{
+"str": "erstellt",
+"x": 288,
+"y": 589
+},
+{
+"str": "und",
+"x": 350,
+"y": 589
+},
+{
+"str": "wird",
+"x": 380,
+"y": 589
+},
+{
+"str": "nicht",
+"x": 417,
+"y": 589
+},
+{
+"str": "unterschrieben.",
+"x": 454,
+"y": 589
+},
+{
+"str": "Für",
+"x": 68,
+"y": 577
+},
+{
+"str": "weitergehende",
+"x": 93,
+"y": 577
+},
+{
+"str": "Fragen",
+"x": 178,
+"y": 577
+},
+{
+"str": "wenden",
+"x": 221,
+"y": 577
+},
+{
+"str": "Sie",
+"x": 264,
+"y": 577
+},
+{
+"str": "sich",
+"x": 288,
+"y": 577
+},
+{
+"str": "bitte",
+"x": 319,
+"y": 577
+},
+{
+"str": "an",
+"x": 356,
+"y": 577
+},
+{
+"str": "Ihr",
+"x": 374,
+"y": 577
+},
+{
+"str": "flatex-Service-Team.",
+"x": 399,
+"y": 577
+},
+{
+"str": "0000000000000006",
+"x": 41,
+"y": 122
+},
+{
+"str": "______________________________________________________________________________",
+"x": 68,
+"y": 84
+},
+{
+"str": "Seite",
+"x": 490,
+"y": 59
+},
+{
+"str": "2/2",
+"x": 527,
+"y": 59
+},
+{
+"str": "flatex Bank AG Niederlassung Österreich | Aktiengesellschaft | Opernring 1 / Top 736 | 1010 Wien | Handelsgericht Wien | FN 334642 x | DVR 4000544 | UID ATU 65140956",
+"x": 76,
+"y": 41
+},
+{
+"str": "Hauptniederlassung: flatex Bank AG | Rotfeder-Ring 7 | 60327 Frankfurt am Main (Deutschland) | Amtsgericht Frankfurt am Main | HRB 105687",
+"x": 112,
+"y": 32
+},
+{
+"str": "- Vorsitzender des Aufsichtsrats: Martin Korbmacher | Vorstand: Frank Niehage (Vors.), Jörn Engelmann, Steffen Jentsch -",
+"x": 141,
+"y": 24
+}
+]
+]
+}
