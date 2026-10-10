@@ -461,6 +461,21 @@ select:focus-visible{outline:2px solid var(--md-sys-color-primary);outline-offse
 .drop .t-body-s{display:inline-flex;align-items:center;gap:4px}
 .drop .t-body-s .ms{font-size:16px}
 .split.src{color:var(--md-sys-color-on-surface-variant);border-color:var(--md-sys-color-outline-variant)}
+
+/* ---- insights & checks ---- */
+.insights{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr));gap:12px}
+.insight{border:1px solid var(--md-sys-color-outline-variant);border-radius:var(--md-sys-shape-corner-large);padding:14px 16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.insight .itop{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center}
+.insight .tag .ms{font-size:14px}
+.insight h3{margin:0}
+.insight p{margin:0;color:var(--md-sys-color-on-surface-variant);overflow-wrap:anywhere}
+.insight .impact b{color:var(--md-sys-color-on-surface);margin-right:4px}
+.auditline{display:flex;align-items:flex-start;gap:6px;margin-top:10px}
+.auditline .ms{font-size:18px}
+
+/* Safety net: a sub-pixel sliver must never make the page wiggle sideways on a phone.
+   `clip` (not `hidden`) keeps position:sticky working; real overruns are still caught per element in tests. */
+html,body{overflow-x:clip}
 </style>
 <div class="app">
   <nav class="rail" aria-label="Sections">
@@ -676,12 +691,14 @@ function holdingDetail(h) {
       ${f("ISIN", `<span class="mono">${h.isin}</span>`)}
       ${f("Held since", fmtD(h.first))}
     </dl>
+    ${h.accounts?.length > 1 ? `<div><div class="lotshead t-label-m"><span class="nw">Held at</span></div><div class="list">${h.accounts.map(a => `<div class="lot"><div class="t-body-m"><span class="d">${esc(a.name)}</span><span class="c">${eur(a.value)}</span></div>
+        <div class="t-body-s"><span class="q">${nfq.format(a.shares)} shares</span><span class="g">cost ${eur(a.cost)}</span></div></div>`).join("")}</div></div>` : ""}
     ${at ? `<div class="note t-body-m">${ms(ICON.info)}<span>Austrian KESt basis (moving average, fees excluded) is <b class="nw">${eur(h.costAustria)}</b>, <span class="nw">${eurS(h.costAustria - h.cost)}</span> vs. the FIFO figure above.</span></div>` : ""}
     <div>
       <div class="lotshead t-label-m"><span class="nw">Open lots · FIFO</span>${sp ? `<span class="tag warn">${sp}</span>` : ""}</div>
       <div class="list">${h.lots.map(l => {
         const g = (h.price - l.price) * l.shares;
-        return `<div class="lot"><div class="t-body-m"><span class="d">${fmtD(l.date)}</span><span class="c">${eur(l.cost)}</span></div>
+        return `<div class="lot"><div class="t-body-m"><span class="d">${fmtD(l.date)}${MULTI && l.account ? `<span class="split src">${esc(l.account)}</span>` : ""}</span><span class="c">${eur(l.cost)}</span></div>
           <div class="t-body-s"><span class="q">${nfq.format(l.shares)} @ ${eur(l.price)}</span><span class="g ${cls(g)}">${eurS(g)}</span></div></div>`;
       }).join("")}</div>
     </div>
@@ -696,6 +713,36 @@ function divergingRows(rows) {
     return `<div class="crow"><div class="crow-top t-body-m"><span>${esc(r.name)}</span><span class="v ${p ? "pos" : "neg"}">${eurS(r.realizedNet).replace(",00", "")}</span></div>
       <span class="div-track" aria-hidden="true"><i class="div-bar ${p ? "p" : "n"}" style="width:${w.toFixed(2)}%"></i></span></div>`;
   }).join("") + `</div>`;
+}
+
+/* ============================== accounts, insights, checks ============================== */
+const ACCOUNTS = P.meta.portfolio.accounts || [];
+const MULTI = ACCOUNTS.length > 1;
+// Written by the scheduled agents into this artifact's private data store; absent outside it.
+const DB = { ready: false, insights: [], audit: null };
+const KIND = { risk: ["Risk", "warning"], cost: ["Costs", "payments"], tax: ["Tax", "receipt_long"], idea: ["Idea", "info"], housekeeping: ["Housekeeping", "check"] };
+function insightCard(x) {
+  const [label, icon] = KIND[x.kind] || ["Note", "info"];
+  return `<article class="insight"><div class="itop t-label-m"><span class="tag">${ms(icon)}${label}</span><span class="muted nw">${x.createdAt ? fmtTime(x.createdAt) : ""}</span></div>
+    <h3 class="t-title-m">${esc(x.title || "")}</h3><p class="t-body-m">${esc(x.body || "")}</p>
+    ${x.impact ? `<p class="t-body-s impact"><b>Impact</b> ${esc(x.impact)}</p>` : ""}</article>`;
+}
+function auditLine() {
+  const a = DB.audit;
+  if (!a) return "";
+  const ok = a.status === "pass";
+  return `<div class="auditline t-body-s ${ok ? "pos" : "neg"}">${ms(ok ? "check_circle" : "error")}<span>${ok
+    ? `Calculations verified <span class="nw">${fmtTime(a.at)}</span> · ${a.passed} checks`
+    : `${a.failed} calculation check${a.failed === 1 ? "" : "s"} failed <span class="nw">${fmtTime(a.at)}</span>${a.summary ? " · " + esc(a.summary) : ""}`}</span></div>`;
+}
+function insightsSection(all) {
+  if (!DB.ready) return "";
+  const list = all ? DB.insights : DB.insights.slice(0, 3);
+  return `<section class="sec" id="insights"><div class="sechead"><h2 class="t-title-l">Insights</h2><span class="sub t-body-m">weekly portfolio review</span>
+      ${!all && DB.insights.length > 3 ? `<a class="link act" href="#more">All ${DB.insights.length} ${ms(ICON.chev)}</a>` : ""}</div>
+    ${list.length ? `<div class="insights">${list.map(insightCard).join("")}</div>`
+      : `<p class="muted t-body-m">No insights yet. The weekly review posts its observations here.</p>`}
+    <p class="muted t-body-s">Observations about your own portfolio, not personal financial advice. Nothing is ever traded for you.</p></section>`;
 }
 
 /* ============================== overview ============================== */
@@ -735,7 +782,9 @@ function vOverview() {
       ${kpi("XIRR p.a.", pct(T.xirr), `since ${sinceY}`)}
       ${kpi("Dividends", eur(T.dividendsNet), `${countOf("dividend")} payments, net`)}
     </dl>
+    ${auditLine()}
   </section>
+  ${insightsSection(false)}
 
   <div class="grid2">
     <section class="sec">
@@ -802,7 +851,7 @@ function vActivity() {
       : `${fmtD(r.d)} · <span class="nw">${nfq.format(r.shares)} @ ${r.priceCcy && r.priceCcy !== "EUR" ? nf2.format(r.priceNative) + NB + r.priceCcy : eur(r.price)}</span>`;
     const kind = r.type === "BUY" ? "Buy" : r.type === "SELL" ? "Sell" : "Dividend";
     html += `<div class="arow"><span class="aic ${t}" title="${kind}">${ms(ICON[t] || ICON.buy, "md")}</span>
-      <span class="abody"><span class="atop"><span class="an">${esc(r.name)}${r.preSplit ? `<span class="split" title="Recorded before a ${r.preSplit}:1 split">pre-split</span>` : ""}${r.source ? `<span class="split src">${esc(r.source)}</span>` : ""}</span><span class="aa ${r.net > 0 ? "pos" : ""}">${eurS(r.net)}</span></span>
+      <span class="abody"><span class="atop"><span class="an">${esc(r.name)}${r.preSplit ? `<span class="split" title="Recorded before a ${r.preSplit}:1 split">pre-split</span>` : ""}${r.source ? `<span class="split src">${esc(r.source)}</span>` : MULTI && r.account ? `<span class="split src">${esc(r.account)}</span>` : ""}</span><span class="aa ${r.net > 0 ? "pos" : ""}">${eurS(r.net)}</span></span>
       <span class="asub t-body-s">${kind} · ${sub}${r.fee ? ` · fee <span class="nw">${eur(r.fee)}</span>` : ""}</span></span></div>`;
   }
   if (month) html += `</div></div>`;
@@ -996,6 +1045,7 @@ function vImport() {
           <span class="d t-body-s">${c.ok ? `${c.shares ? `<span class="nw">${nfq.format(c.shares.ours)} shares</span> · ` : ""}matches ${esc((c.matches || [method])[0])}` : esc(c.issue || "does not reconcile")}</span></span>
         </div>`).join("")}</div>
       ${splits.length ? `<div class="note t-body-m">${ms(ICON.info)}<span>Parqet's activity feed isn't split-adjusted. Applied on ex-date: <b>${splits.join(", ")}</b>.</span></div>` : ""}
+      ${auditLine()}
       <div class="btnrow"><button class="btn filled sl" data-sync="1">${ms("sync")}Sync now</button><button class="btn outlined sl" data-howsync="1">${ms("help")}How sync works</button></div>
     </section>`;
 
@@ -1055,7 +1105,10 @@ function vMore() {
     <div class="srchead"><span class="srcav" aria-hidden="true">${esc(P.meta.portfolio.name.slice(0, 1))}</span>
       <div><h2 class="t-title-l">${esc(P.meta.portfolio.name)}</h2><p class="t-body-m">${IS_DEMO ? "Demo depot" : "Synced from Parqet"} · ${P.meta.currency} · since ${fmtD(P.meta.since || SERIES[0].d)}</p></div></div>
     <div class="inline-facts t-body-m"><span><b>${eur0(T.value)}</b> value</span><span><b>${P.holdings.length}</b> open</span><span><b>${P.ledger.length}</b> activities</span></div>
+    ${MULTI ? `<div class="list">${ACCOUNTS.map(a => `<div class="srow">${ms("payments")}<div><b>${esc(a.name)}</b><p class="t-body-m">${a.activities} activities</p></div></div>`).join("")}</div>` : ""}
   </section>
+  ${DB.ready ? `<section class="sec"><h2 class="t-title-l">Calculation checks</h2>${auditLine() || `<p class="muted t-body-m">No check has run yet. The daily sync verifies every figure against the raw trades and Parqet.</p>`}</section>` : ""}
+  ${insightsSection(true)}
   <section class="sec">
     <h2 class="t-title-l">Cost basis</h2>
     <div class="list">
@@ -1177,4 +1230,15 @@ document.getElementById("srcPill").title = IS_DEMO ? "Demo data" : "Synced from 
 document.getElementById("railFoot").innerHTML = IS_DEMO ? "Demo data, fictional." : `Synced from Parqet<br>${fmtTime(P.meta.convertedAt || P.meta.asOf)}`;
 applyTheme(currentThemeSetting());
 route();
+// Light up insights and check results when this page runs inside its artifact; absent elsewhere.
+(async () => {
+  const db = window.claude?.use ? await window.claude.use("db").catch(() => null) : null;
+  if (!db) return;
+  DB.ready = true;
+  const rerender = () => { if (S.view !== "activity" && !S.imp) render(); };
+  db.collection("insights").orderBy("createdAt", "desc").limit(50)
+    .onSnapshot(snap => { DB.insights = snap.docs.map(d => ({ id: d.id, ...d.data() })); rerender(); }, () => {});
+  db.doc("audits/latest").onSnapshot(snap => { DB.audit = snap.exists ? snap.data() : null; rerender(); }, () => {});
+  rerender();
+})();
 </script>

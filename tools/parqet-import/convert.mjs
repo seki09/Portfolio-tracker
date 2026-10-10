@@ -33,7 +33,14 @@ const read = (f, optional = false) => {
   return JSON.parse(readFileSync(p, "utf8"));
 };
 
-const activitiesRaw = read("activities.json");
+// One or more portfolios. Multi-portfolio layout: portfolios.json (parqet_list_portfolios)
+// plus activities-<portfolioId>.json per portfolio; performance/charts/day/ranges are
+// the aggregated payloads (portfolioIds = all). Single-portfolio layout: activities.json.
+const portfoliosRaw = read("portfolios.json", true);
+const portfolioList = portfoliosRaw?.items ?? null;
+const activityPayloads = portfolioList
+  ? portfolioList.map(pf => ({ pf, raw: read(`activities-${pf.id}.json`) }))
+  : [{ pf: null, raw: read("activities.json") }];
 const performance = read("performance.json");
 const charts = read("overview-charts.json");
 const day = read("day.json", true);
@@ -51,9 +58,15 @@ const r2 = n => Math.round(n * 100) / 100;
 const r6 = n => Math.round(n * 1e6) / 1e6;
 const EPS_SHARES = 1e-6, EPS_EUR = 0.01;
 
-if (activitiesRaw.cursor) throw new Error("activities.json is a partial page (cursor set) — fetch all pages first.");
-if (activitiesRaw.activities.length !== activitiesRaw.totalActivities)
-  throw new Error(`activities.json holds ${activitiesRaw.activities.length} of ${activitiesRaw.totalActivities} rows.`);
+for (const { pf, raw } of activityPayloads) {
+  const label = pf ? `activities-${pf.id}.json` : "activities.json";
+  if (raw.cursor) throw new Error(`${label} is a partial page (cursor set) — fetch all pages first.`);
+  if (raw.activities.length !== raw.totalActivities)
+    throw new Error(`${label} holds ${raw.activities.length} of ${raw.totalActivities} rows.`);
+}
+const accountName = new Map((portfolioList ?? [{ id: activityPayloads[0].raw.portfolioId, name: portfolioRaw?.name ?? "Parqet portfolio" }])
+  .map(pf => [pf.id, pf.name]));
+const accountOf = sub => accountName.get(String(sub ?? "").split("::")[0]) ?? "Parqet";
 
 /* ---------------------------------------------------------------- names */
 function shortName(name, kind) {
@@ -75,6 +88,7 @@ for (const h of performance.holdings) {
   const kind = kindOf(h.asset.name);
   holdings.set(h.id, {
     id: h.id, isin: h.asset.isin, name: h.asset.name, short: shortName(h.asset.name, kind), kind,
+    account: accountOf(h.subAccount),
     position: h.position, quote: h.quote,
     realizedNet: h.performance.realizedGains.inInterval.gainNet,
     unrealizedNet: h.performance.unrealizedGains.inInterval.gainNet,
@@ -87,14 +101,16 @@ for (const h of performance.holdings) {
 /* ----------------------------------------------------------- activities */
 // Stable chronological order; Parqet encodes same-instant ordering in the
 // millisecond field (e.g. ...07:00:00.000 buy, ...07:00:00.001 sell).
-const acts = activitiesRaw.activities
+const acts = activityPayloads.flatMap(({ raw }) => raw.activities)
   .map((a, i) => ({ ...a, _i: i }))
   .sort((a, b) => a.datetime.localeCompare(b.datetime) || a._i - b._i);
 
 for (const a of acts) {
   const h = holdings.get(a.holdingId);
   if (!h) throw new Error(`Activity ${a.id} references unknown holding ${a.holdingId}`);
-  if (a.currency !== "EUR") throw new Error(`Activity ${a.id} is in ${a.currency}; FX handling not implemented for this source yet.`);
+  // Never convert on a guessed rate: a non-EUR activity fails its own position's
+  // reconciliation (shown in the app and the audit) instead of stopping the sync.
+  if (a.currency !== "EUR") h.fxIssue = `has ${a.currency} activities; FX conversion isn't implemented for this source yet`;
   h.activities.push(a);
 }
 
@@ -105,6 +121,7 @@ for (const a of acts) {
  * Austrian KESt uses moving average with fees excluded (Privatvermögen).
  */
 function rebuild(h) {
+  if (h.fxIssue) return { error: h.fxIssue };
   const splits = (splitsBy.get(h.isin) ?? []).slice();
   const fifo = [];                          // {date, shares, price, gross, fee}
   const avg = { shares: 0, incl: 0, excl: 0 };
@@ -171,13 +188,15 @@ for (const h of holdings.values()) {
   if (!theirs.isSold || !check.ok) reconcile.push(check);   // closed positions surface only when broken
 
   if (theirs.isSold) {
-    closed.push({ isin: h.isin, name: h.short, fullName: h.name, kind: h.kind,
+    closed.push({ isin: h.isin, name: h.short, fullName: h.name, kind: h.kind, account: h.account,
       realizedNet: r2(h.realizedNet), dividendsNet: r2(h.dividendsNet), first, last, trades: h.activities.length });
     continue;
   }
-  const d = day?.holdings?.[h.isin];
+  const d = Array.isArray(day?.holdings)
+    ? day.holdings.find(x => x.id === h.id)?.performance?.valuation
+    : day?.holdings?.[h.isin];
   open.push({
-    id: h.id, isin: h.isin, name: h.short, fullName: h.name, kind: h.kind,
+    id: h.id, isin: h.isin, name: h.short, fullName: h.name, kind: h.kind, account: h.account,
     shares: r6(theirs.shares), price: theirs.currentPrice, value: r2(theirs.currentValue),
     cost: r2(theirs.purchaseValue), avg: r2(theirs.purchasePrice),
     unrealized: r2(theirs.currentValue - theirs.purchaseValue),
@@ -189,9 +208,51 @@ for (const h of holdings.values()) {
     first, trades: h.activities.length,
     splits: check.splits ?? [],
     costAustria: rb.cost ? r2(rb.cost.avgExcl) : null,
-    lots: (rb.fifo ?? []).map(l => ({ date: l.date, shares: r6(l.shares), price: r6(l.price), cost: r2(l.gross), fee: r2(l.fee) })),
+    lots: (rb.fifo ?? []).map(l => ({ date: l.date, shares: r6(l.shares), price: r6(l.price), cost: r2(l.gross), fee: r2(l.fee), account: h.account })),
   });
 }
+/* ------------------------------------------------- one combined account */
+// The same security held at several brokers is one position; each account's lots and
+// share of it stay visible. Austrian KESt basis is per depot, so it is summed per account.
+function combine(list) {
+  const byIsin = new Map();
+  for (const o of list) { if (!byIsin.has(o.isin)) byIsin.set(o.isin, []); byIsin.get(o.isin).push(o); }
+  return [...byIsin.values()].map(parts => {
+    if (parts.length === 1) return { ...parts[0], accounts: [{ name: parts[0].account, shares: parts[0].shares, value: parts[0].value, cost: parts[0].cost }] };
+    const sum = k => parts.reduce((s, p) => s + (p[k] ?? 0), 0);
+    const lead = parts.slice().sort((a, b) => b.value - a.value)[0];
+    const shares = r6(sum("shares")), value = r2(sum("value")), cost = r2(sum("cost"));
+    const dayKnown = parts.every(p => p.dayAbs != null), dayAbs = dayKnown ? r2(sum("dayAbs")) : null;
+    return {
+      ...lead, id: "isin-" + lead.isin, account: null, shares, value, cost,
+      avg: shares ? r2(cost / shares) : 0, unrealized: r2(value - cost), unrealizedPct: cost ? r2((value / cost - 1) * 100) : 0,
+      realized: r2(sum("realized")), dividendsNet: r2(sum("dividendsNet")),
+      dayAbs, dayPct: dayKnown && value - dayAbs ? r2(dayAbs / (value - dayAbs) * 100) : null,
+      quote: parts.map(p => p.quote).sort((a, b) => b.at.localeCompare(a.at))[0],
+      first: parts.map(p => p.first).sort()[0], trades: sum("trades"),
+      splits: [...new Map(parts.flatMap(p => p.splits).map(x => [x.exDate + x.ratio, x])).values()],
+      costAustria: parts.every(p => p.costAustria != null) ? r2(sum("costAustria")) : null,
+      lots: parts.flatMap(p => p.lots).sort((a, b) => a.date.localeCompare(b.date)),
+      accounts: parts.map(p => ({ name: p.account, shares: p.shares, value: p.value, cost: p.cost })),
+    };
+  });
+}
+const openCombined = combine(open);
+const openIsins = new Set(openCombined.map(o => o.isin));
+// A security sold out at one broker but still held at another is one open position:
+// its realised result and dividends belong to that position, not to "closed".
+for (const c of closed.filter(c => openIsins.has(c.isin))) {
+  const o = openCombined.find(x => x.isin === c.isin);
+  o.realized = r2(o.realized + c.realizedNet); o.dividendsNet = r2(o.dividendsNet + c.dividendsNet);
+}
+const closedByIsin = new Map();
+for (const c of closed.filter(c => !openIsins.has(c.isin))) {
+  const prev = closedByIsin.get(c.isin);
+  closedByIsin.set(c.isin, prev ? { ...prev, realizedNet: r2(prev.realizedNet + c.realizedNet), dividendsNet: r2(prev.dividendsNet + c.dividendsNet),
+    first: [prev.first, c.first].sort()[0], last: [prev.last, c.last].sort()[1], trades: prev.trades + c.trades, account: null } : c);
+}
+open.length = 0; open.push(...openCombined);
+closed.length = 0; closed.push(...closedByIsin.values());
 open.sort((a, b) => b.value - a.value);
 closed.sort((a, b) => b.realizedNet - a.realizedNet);
 
@@ -203,7 +264,7 @@ const ledger = acts.slice().reverse().map(a => {
   const preSplit = later.reduce((m, sp) => m * sp.ratio, 1);
   return {
     preSplit: preSplit > 1 && a.type !== "dividend" ? preSplit : undefined,
-    d: a.datetime.slice(0, 10), type: a.type.toUpperCase(), name: h.short, isin: h.isin,
+    d: a.datetime.slice(0, 10), type: a.type.toUpperCase(), name: h.short, isin: h.isin, account: accountOf(a.subAccount),
     shares: a.type === "dividend" ? null : r6(a.shares), price: a.type === "dividend" ? null : r2(a.price),
     gross: r2(a.amount), fee: r2(a.fee), tax: r2(a.tax), net: r2(signed(a)),
   };
@@ -230,8 +291,11 @@ const totals = {
   taxes: r2(P.taxes.inInterval.taxes),
   xirr: r2(P.kpis.inInterval.xirr),
   ttwror: r2(P.kpis.inInterval.ttwror),
-  dayAbs: day ? r2(day.portfolio.atIntervalEnd - day.portfolio.atIntervalStart) : null,
-  dayPct: day ? r2((day.portfolio.atIntervalEnd / day.portfolio.atIntervalStart - 1) * 100) : null,
+  ...(() => {
+    const v = day?.performance?.valuation ?? day?.portfolio;          // raw payload or legacy
+    return v ? { dayAbs: r2(v.atIntervalEnd - v.atIntervalStart), dayPct: r2((v.atIntervalEnd / v.atIntervalStart - 1) * 100) }
+             : { dayAbs: null, dayPct: null };
+  })(),
 };
 // Parqet's own gains.totalNet excludes dividends; ours includes them, labelled as such.
 totals.totalGain = r2(totals.realized + totals.unrealized + totals.dividendsNet);
@@ -239,14 +303,20 @@ totals.costBasisMethod = "FIFO, fees excluded";
 
 // Per-range returns come from the source, not from the series: realised gains
 // leave the series as cash, so value deltas alone would understate returns.
-const ranges = rangesRaw ? Object.fromEntries(Object.entries(rangesRaw).filter(([k]) => !k.startsWith("_"))
-  .map(([k, v]) => [k, { start: v.start, ttwror: r2(v.ttwror), xirr: r2(v.xirr), gain: r2(v.gainNet + v.dividendsNet) }])) : null;
+const ranges = rangesRaw ? Object.fromEntries(Object.entries(rangesRaw).filter(([k]) => !k.startsWith("_")).map(([k, v]) => [k,
+  v.valuation   // raw parqet_query_portfolio overview payload
+    ? { start: v.interval.start, ttwror: r2(v.returns.ttwror), xirr: r2(v.returns.xirr), gain: r2(v.gains.totalNet + v.dividends.net) }
+    : { start: v.start, ttwror: r2(v.ttwror), xirr: r2(v.xirr), gain: r2(v.gainNet + v.dividendsNet) }])) : null;
 
 const counts = acts.reduce((m, a) => (m[a.type] = (m[a.type] ?? 0) + 1, m), {});
 const snapshot = {
   meta: {
     source: "parqet", isDemo: false, currency: performance.currency,
-    portfolio: { id: activitiesRaw.portfolioId, name: portfolioRaw?.name ?? "Parqet portfolio" },
+    portfolio: {
+      id: [...accountName.keys()].join(","),
+      name: accountName.size > 1 ? "All accounts" : [...accountName.values()][0],
+      accounts: [...accountName].map(([id, name]) => ({ id, name, activities: acts.filter(a => accountOf(a.subAccount) === name).length })),
+    },
     since: performance.interval.start, asOf: open.reduce((m, h) => (h.quote.at > m ? h.quote.at : m), ""),
     convertedAt: new Date().toISOString(),
   },

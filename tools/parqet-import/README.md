@@ -15,12 +15,18 @@ working prototype of the `parqet-api` adapter in
 
    | File | Parqet call |
    | --- | --- |
-   | `activities.json` | `parqet_get_activities` (all pages; the converter rejects a partial page) |
-   | `performance.json` | `parqet_get_performance` (interval `max`) |
+   | `portfolios.json` | `parqet_list_portfolios` — **all** portfolios; turns on the combined account |
+   | `activities-<portfolioId>.json` | `parqet_get_activities` per portfolio (all pages; partial pages are rejected) |
+   | `activities.json` | single-portfolio layout only, instead of the two rows above |
+   | `performance.json` | `parqet_get_performance` (interval `max`, `portfolioIds` = all) |
    | `overview-charts.json` | `parqet_query_portfolio` view `overview`, `includeCharts: true` |
    | `portfolio.json` | `parqet_list_portfolios` entry for the portfolio (optional; display name) |
-   | `day.json` | `parqet_get_performance` interval `1d` (optional; per-position day change) |
-   | `ranges.json` | `parqet_query_portfolio` overview per interval 1m…max (optional; range returns) |
+   | `day.json` | raw `parqet_get_performance` interval `1d`, all portfolios (optional; day change) |
+   | `ranges.json` | `{ "1M": <overview payload>, "6M": …, "YTD": …, "1Y": …, "5Y": …, "MAX": … }` from `parqet_query_portfolio` view `overview` (optional; range returns) |
+
+   Performance, charts, day and ranges are requested with **all** portfolio IDs, so Parqet
+   aggregates them. The connector only sees portfolios it was granted when it was connected
+   — a portfolio added later in Parqet must be granted by reconnecting the connector.
 
    The Parqet Connect API returns the same shapes, so the production adapter
    swaps the capture step and keeps everything below.
@@ -33,6 +39,15 @@ working prototype of the `parqet-api` adapter in
 
 3. **Open** `prototype/index.html`. It renders `portfolio.local.js` when present
    and falls back to the committed demo snapshot otherwise.
+
+## One combined account
+
+With several portfolios, the same security held at several brokers becomes **one
+position**: shares, value and cost are summed, each broker's lots stay tagged with their
+account, and the Austrian KESt basis is summed per depot (it is computed per depot). A
+security sold out at one broker but still held at another stays one open position that
+carries the realised result. Every per-broker holding is still reconciled on its own.
+Tested on a synthetic two-broker portfolio: `node --test tools/parqet-import/*.test.mjs`.
 
 ## What the converter checks
 
