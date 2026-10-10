@@ -49,6 +49,17 @@ security sold out at one broker but still held at another stays one open positio
 carries the realised result. Every per-broker holding is still reconciled on its own.
 Tested on a synthetic two-broker portfolio: `node --test tools/parqet-import/*.test.mjs`.
 
+### Cash accounts
+
+Some brokers (Trade Republic) come with a cash holding — the settlement account. Parqet
+books every trade paid through it twice: once on the security and once as a
+`cpa_referencing_<id>` mirror on the cash holding. The converter keeps the security side
+only, lists the balance under `cash` (`[{account, name, value}]`, sum in `totals.cash`) and
+keeps it in `totals.value`, exactly as Parqet's valuation does. Gains and the money-in/out
+self-check cover the securities only; the app weights positions by securities value. A
+negative balance means deposits to that account aren't recorded in Parqet. Any other kind
+of cash-account booking (deposit, withdrawal) stops the import until a cash ledger exists.
+
 ## What the converter checks
 
 Positions and lots are **rebuilt from raw activities**, not copied from Parqet's

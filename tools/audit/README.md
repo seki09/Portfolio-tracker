@@ -58,6 +58,8 @@ both ways.
   terminal value on the interval end. This reproduces Parqet to < 1e‑4 pp.
   Range XIRRs treat the range's opening value as invested on the **day before**
   the range start (also < 0.005 pp). Deposits / withdrawals are not flows here.
+  Cash-account balances are left out of the terminal and opening values — that is
+  what Parqet does (< 1e‑4 pp with, 0.014 pp off without, on real data).
 * **TTWROR**: chained daily returns `(V_t − F_t) / V_{t−1}` with `F_t` = net
   inflow of the day. Only feasible where Parqet's chart series is daily and has a
   point on the day before the range start — older parts of the series are
@@ -69,15 +71,15 @@ both ways.
 
 | Group | Checks |
 | --- | --- |
-| Inputs | activity pages complete (cursor exhausted, `totalActivities` matches), unknown types, fx rows, deposits/withdrawals |
+| Inputs | activity pages complete (cursor exhausted, `totalActivities` matches), unknown types, fx rows, deposits/withdrawals; every cash-account booking mirrors a security trade (same type, time, net amount) — mirrors are then left out of every other check |
 | Positions | rebuilt shares vs Parqet per holding and per ISIN; vs snapshot per ISIN and per ISIN × portfolio (`holdings[].accounts`); applied splits vs `holdings[].splits`; no sell exceeds the position (a missing split shows up here) |
 | Cost basis | FIFO vs Parqet `purchaseValue` (per holding) and snapshot `cost` (per ISIN and per account); moving average vs `costAustria`; `avg = cost / shares` |
 | Lots | Σ lot shares = shares, Σ lot cost = cost; snapshot lots = rebuilt FIFO lots (date, shares, cost, fee, account) |
-| Valuation | shares × price = value; value vs Parqet `currentValue`; Σ holdings = `totals.value` = Parqet valuation; `unrealized = value − cost − open-lot buy fees` (fees from the audit's own lot rebuild); `totalGain` = value + Σ received − Σ paid from raw cash flows; `totals.invested` = Σ open FIFO cost; `totals.unrealized` = Σ holding rows; Parqet's unrealized gross − net vs the remaining lots' buy fees |
+| Valuation | shares × price = value; value vs Parqet `currentValue`; Σ holdings + `cash` = `totals.value` = Parqet valuation; cash balance rebuilt from the mirrored trades vs Parqet vs snapshot; `unrealized = value − cost − open-lot buy fees` (fees from the audit's own lot rebuild); `totalGain` = securities value + Σ received − Σ paid from raw cash flows; `totals.invested` = Σ open FIFO cost; `totals.unrealized` = Σ holding rows; Parqet's unrealized gross − net vs the remaining lots' buy fees |
 | Realised | per sell vs Parqet's own row fields; per holding and total (gross, net) vs Parqet; net per ISIN vs snapshot `holdings.realized` + `closed.realizedNet` |
 | Dividends | gross / net / tax / fees vs Parqet and snapshot; per ISIN; all fees & taxes; `totalGain = unrealized + realized + dividendsNet` |
 | Returns | XIRR vs Parqet and snapshot; per-portfolio XIRR (if per-portfolio payloads exist); range XIRRs; TTWROR sanity; snapshot ranges = Parqet ranges |
-| Series | last point = `totals.value` / `totals.invested`; no negatives; dates strictly increasing; pointwise = Parqet chart (`bod` points excluded) |
+| Series | last point = `totals.value` / `totals.invested` (Parqet's capital line adds the cash accounts' `purchaseValue`, signed by the balance); no negatives; dates strictly increasing; pointwise = Parqet chart (`bod` points excluded) |
 | Ledger | row count; count and Σ gross / fee / tax / signed net per type; signs (buys −, sells / dividends +); every row matches one raw activity |
 | Freshness | newest and oldest open-position quote, snapshot `convertedAt` and `asOf` |
 

@@ -503,6 +503,9 @@ html,body{overflow-x:clip}
 /* ============================== data ============================== */
 const P = window.PORTFOLIO || window.PORTFOLIO_DEMO;
 const T = P.totals;
+// Weights are shares of the securities; cash-account balances (in T.value, as in Parqet) are listed apart.
+const SECV = P.holdings.reduce((s, h) => s + h.value, 0);
+const CASH = P.cash ?? [];
 const IS_DEMO = !!P.meta.isDemo;
 const SERIES = P.series.map(([d, v, c]) => ({ t: Date.parse(d + "T00:00:00Z"), d, v, c })).filter((p, i, a) => i === 0 || p.t > a[i - 1].t);
 const COLORS = ["var(--c1)", "var(--c2)", "var(--c3)", "var(--c4)", "var(--c5)"];
@@ -662,7 +665,7 @@ function totalMarkup(v) {
 }
 const stat = (label, value, vcls = "") => `<div class="stat"><dt>${label}</dt><dd class="${vcls}">${value}</dd></div>`;
 function holdingCard(h, compact) {
-  const open = !compact && S.open.has(h.id), w = h.value / T.value * 100;
+  const open = !compact && S.open.has(h.id), w = h.value / SECV * 100;
   return `<article class="hcard${open ? " open" : ""}" style="--c:${h.color}">
     <button class="hmain sl" data-hold="${esc(h.id)}" aria-expanded="${open}">
       <span class="avatar" aria-hidden="true">${monogram(h.name)}</span>
@@ -789,9 +792,12 @@ function vOverview() {
   <div class="grid2">
     <section class="sec">
       <div class="sechead"><h2 class="t-title-l">Allocation</h2><span class="sub t-body-m">${P.holdings.length} positions</span></div>
-      <div class="stack" role="img" aria-label="Allocation by position">${alloc.map(a => `<i style="width:${(a.v / T.value * 100).toFixed(2)}%;background:${a.color}"></i>`).join("")}</div>
+      <div class="stack" role="img" aria-label="Allocation by position">${alloc.map(a => `<i style="width:${(a.v / SECV * 100).toFixed(2)}%;background:${a.color}"></i>`).join("")}</div>
       <div class="list">${alloc.map(a => `<div class="lrow"><span class="lname"><i class="sw" style="background:${a.color}"></i><span class="t-body-l">${esc(a.name)}</span></span>
-        <span class="lfig t-body-m"><span class="pc">${nf1.format(a.v / T.value * 100)}${NB}%</span><span class="eu">${eur0(a.v)}</span></span></div>`).join("")}</div>
+        <span class="lfig t-body-m"><span class="pc">${nf1.format(a.v / SECV * 100)}${NB}%</span><span class="eu">${eur0(a.v)}</span></span></div>`).join("")}</div>
+      ${CASH.length ? `<div class="list">${CASH.map(c => `<div class="lrow"><span class="lname"><i class="sw" style="background:var(--md-sys-color-outline)"></i><span class="t-body-l">Cash · ${esc(c.account)}</span></span>
+        <span class="lfig t-body-m"><span class="eu">${c.value < 0 ? eurS(c.value) : eur(c.value)}</span></span></div>`).join("")}</div>
+      <p class="muted t-body-s">Cash balances count towards total value, as in Parqet, but not towards gains or the shares above.${CASH.some(c => c.value < 0) ? " A negative balance means deposits to that account aren’t recorded in Parqet." : ""}</p>` : ""}
     </section>
     <section class="sec">
       <div class="sechead"><h2 class="t-title-l">Dividends by year</h2><span class="sub t-body-m nw">net · ${eur(T.dividendsNet)}</span></div>

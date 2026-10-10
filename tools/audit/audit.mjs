@@ -98,6 +98,7 @@ export function normalizeActivities(payloads) {
       type: a.type,
       portfolioId,
       holdingId: a.holdingId ?? null,
+      assetType: a.holdingAssetType ?? null,
       isin: a.asset?.isin ?? a.isin ?? null,
       key: `${portfolioId}|${a.holdingId ?? a.asset?.isin ?? a.isin ?? 'cash'}`,
       datetime: a.datetime,
@@ -431,6 +432,16 @@ export function parqetHoldings(raw) {
   return m;
 }
 
+/** A range entry as {start, startValue, endValue, ttwror, xirr, gainNet, dividendsNet}:
+ *  accepts the raw parqet_query_portfolio overview payload or that flat shape. */
+export function normalizeRange(r) {
+  if (!r || typeof r !== 'object' || !r.valuation) return r;
+  return {
+    start: r.interval?.start, startValue: r.valuation.atIntervalStart, endValue: r.valuation.atIntervalEnd,
+    ttwror: r.returns?.ttwror, xirr: r.returns?.xirr, gainNet: r.gains?.totalNet, dividendsNet: r.dividends?.net,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Check plumbing
 // ---------------------------------------------------------------------------
@@ -461,7 +472,17 @@ const item = (label, ours, theirs, tol = TOL.money) => ({ label, ours, theirs, t
 export function runAudit({ raw, snapshot, splits, now = new Date() }) {
   const R = new Report();
   const S = snapshot;
-  const { activities, incomplete, duplicates } = normalizeActivities(raw.actPayloads);
+  const { activities: allActs, incomplete, duplicates } = normalizeActivities(raw.actPayloads);
+  const ph = parqetHoldings(raw);
+  const ranges = Object.fromEntries(Object.entries(raw.ranges ?? {}).map(([k, r]) => [k, normalizeRange(r)]));
+  // Cash accounts (Trade Republic's Verrechnungskonto): a trade settled through one is booked
+  // twice — on the security and as a `cpa_referencing_<id>` mirror on the cash holding. Mirrors
+  // are verified against their trade below and then left out of every other check.
+  const cashHoldings = [...ph.values()].filter((h) => h.asset?.type === 'cash');
+  const cashIds = new Set(cashHoldings.map((h) => h.id));
+  const isCash = (a) => a.assetType === 'cash' || cashIds.has(a.holdingId);
+  const cashActs = allActs.filter(isCash);
+  const activities = allActs.filter((a) => !isCash(a));
   const pids = [...new Set(activities.map((a) => a.portfolioId))];
   const names = new Map(raw.names);
   for (const acc of S?.meta?.portfolio?.accounts ?? []) if (acc.id) names.set(acc.id, acc.name);
@@ -479,14 +500,28 @@ export function runAudit({ raw, snapshot, splits, now = new Date() }) {
   R.add(unknown.length ? 'FAIL' : fx.length || cashMoves.length ? 'WARN' : 'PASS', 'Inputs', 'Activity types / currency',
     `${unknown.length} unknown type(s), ${fx.length} with fx, ${cashMoves.length} deposit/withdrawal (excluded from XIRR flows)`);
 
+  if (cashActs.length || cashHoldings.length) {
+    const byId = new Map(activities.map((a) => [a.id, a]));
+    const orphan = cashActs.filter((c) => {
+      const t = String(c.id).startsWith('cpa_referencing_') && byId.get(`cpa_${c.id.slice('cpa_referencing_'.length)}`);
+      return !t || t.type !== c.type || t.datetime !== c.datetime || Math.abs(t.amountNet - c.amountNet) > TOL.money;
+    });
+    R.add(orphan.length ? 'FAIL' : 'PASS', 'Inputs', 'Cash-account bookings mirror a security trade',
+      `${cashActs.length - orphan.length}/${cashActs.length} matched (same type, time, net amount)`, orphan.map((c) => `${c.date} ${c.type} ${c.id}`));
+    R.compare('Valuation', 'Cash balance: Σ mirrored trades vs Parqet vs snapshot', cashHoldings.flatMap((h) => {
+      const own = cashActs.filter((c) => c.holdingId === h.id);
+      const bal = sum(own, (c) => (OUTFLOW.has(c.type) ? c.amountNet : INFLOW.has(c.type) ? -c.amountNet : 0));
+      return [item(`${nameOf(h.portfolioId)} rebuilt vs Parqet`, bal, h.position.currentValue)];
+    }).concat([item('Σ Parqet vs snapshot cash', sum(cashHoldings, (h) => h.position.currentValue), sum(S?.cash ?? [], (c) => c.value))]));
+  }
+
   const positions = rebuildPositions(activities, splits);
   const combined = combineByIsin(positions);
-  const ph = parqetHoldings(raw);
   const warnings = [...positions.values()].flatMap((p) => p.warnings.map((w) => `${p.isin} @ ${nameOf(p.portfolioId)}: ${w}`));
   R.add(warnings.length ? 'FAIL' : 'PASS', 'Positions', 'Rebuild consistent (no oversell)', `${warnings.length} warning(s)`, warnings);
 
   // ---- Positions -----------------------------------------------------------
-  const phList = [...ph.values()];
+  const phList = [...ph.values()].filter((h) => !cashIds.has(h.id));
   const missing = phList.filter((h) => !positions.has(h.key) && h.position.shares !== 0);
   if (missing.length) R.add('FAIL', 'Positions', 'Every Parqet holding has activities', `${missing.length} without activities`, missing.map((h) => h.asset?.isin));
   R.compare('Positions', 'Shares per holding: rebuilt vs Parqet', phList.map((h) =>
@@ -572,8 +607,10 @@ export function runAudit({ raw, snapshot, splits, now = new Date() }) {
   R.compare('Valuation', 'Value per ISIN: snapshot vs Parqet currentValue', allIsins.map((isin) =>
     item(isin, snapSum(isin, (h) => h.value), parqetByIsin.get(isin)?.currentValue ?? 0)));
   const pv = raw.performance?.performance?.valuation?.atIntervalEnd;
-  R.compare('Valuation', 'Σ holdings value = totals.value = Parqet valuation', [
-    item('Σ holdings vs totals.value', sum(H, (h) => h.value), S?.totals?.value, sumTol(H.length)),
+  const snapCash = sum(S?.cash ?? [], (c) => c.value);
+  const parqetCash = sum(cashHoldings, (h) => h.position.currentValue);
+  R.compare('Valuation', 'Σ holdings value + cash = totals.value = Parqet valuation', [
+    item('Σ holdings + cash vs totals.value', sum(H, (h) => h.value) + snapCash, S?.totals?.value, sumTol(H.length + 1)),
     ...(pv != null ? [item('totals.value vs Parqet', S?.totals?.value, pv)] : []),
   ]);
   // Definition (agreed after the first audit): unrealised is NET of the buy fees still
@@ -600,13 +637,14 @@ export function runAudit({ raw, snapshot, splits, now = new Date() }) {
   const unrealSum = sum(H, (h) => h.unrealized);
   R.compare('Valuation', 'totals.unrealized = Σ holdings unrealized', [item('totals', S?.totals?.unrealized, unrealSum, sumTol(H.length))],
     { note: 'rows and total are net of open-lot buy fees' });
-  // Ground truth for the headline figure: value now + everything received − everything paid,
-  // straight from raw activities (only defined when every activity is a EUR cash event).
-  const rawActs = raw.activities ?? [];
-  if (rawActs.length && rawActs.every((a) => ['buy', 'sell', 'dividend', 'interest', 'fees_taxes'].includes(a.type) && a.currency === 'EUR')) {
-    const flows = sum(rawActs, (a) => (a.type === 'buy' || a.type === 'fees_taxes' ? -a.amountNet : a.amountNet));
-    R.compare('Valuation', 'totalGain = value + received − paid (raw cash flows)', [item('totalGain', (pv ?? S?.totals?.value) + flows, S?.totals?.totalGain, 0.05)]);
-  }
+  // Ground truth for the headline figure: securities value now + everything received − everything
+  // paid, straight from raw activities (only defined when every activity is a EUR cash event).
+  // Cash-account balances are not gains and are taken out of the value.
+  if (activities.length && activities.every((a) => ['buy', 'sell', 'dividend', 'interest', 'fees_taxes'].includes(a.type) && a.currency === 'EUR')) {
+    const flows = sum(activities, (a) => (a.type === 'buy' || a.type === 'fees_taxes' ? -a.amountNet : a.amountNet));
+    R.compare('Valuation', 'totalGain = securities value + received − paid (raw cash flows)',
+      [item('totalGain', (pv ?? S?.totals?.value) - parqetCash + flows, S?.totals?.totalGain, 0.05)]);
+  } else R.add('SKIP', 'Valuation', 'totalGain vs raw cash flows', 'transfers, deposits or non-EUR activities present');
 
   // ---- Realised gains & dividends -----------------------------------------
   const sells = [...positions.values()].flatMap((p) => p.sells.map((s) => ({ ...s, isin: p.isin, pid: p.portfolioId })));
@@ -662,7 +700,10 @@ export function runAudit({ raw, snapshot, splits, now = new Date() }) {
 
   // ---- Returns -------------------------------------------------------------
   const end = raw.performance?.interval?.end ?? raw.charts?.interval?.end ?? dayOf(S?.meta?.asOf);
-  const termV = pv ?? T.value;
+  // Parqet's XIRR measures the securities only: the cash-account balance is left out of the
+  // terminal (and opening) value. Verified on real data: < 1e-4 pp with, 0.014 pp without.
+  const cashOn = (day) => sum(cashActs.filter((c) => c.date <= day), (c) => (OUTFLOW.has(c.type) ? c.amountNet : INFLOW.has(c.type) ? -c.amountNet : 0));
+  const termV = (pv ?? T.value) - parqetCash;
   const flows = investorFlows(activities, { date: end, value: termV });
   const x = xirr(flows);
   const px = raw.performance?.performance?.kpis?.inInterval?.xirr;
@@ -684,12 +725,12 @@ export function runAudit({ raw, snapshot, splits, now = new Date() }) {
   // those are skipped.
   const rangeItems = [];
   const skippedX = [];
-  for (const [k, r] of Object.entries(raw.ranges ?? {})) {
+  for (const [k, r] of Object.entries(ranges)) {
     if (!r || typeof r !== 'object' || !r.start || !(r.startValue > 0) || r.xirr == null) continue;
     if (r.xirr === 0) { skippedX.push(k); continue; }
     const acts = activities.filter((a) => a.date >= r.start);
     const opening = new Date(Date.parse(r.start) - DAY_MS).toISOString().slice(0, 10);
-    const fl = [{ date: opening, amount: -r.startValue }, ...investorFlows(acts, { date: end, value: r.endValue })];
+    const fl = [{ date: opening, amount: -(r.startValue - cashOn(opening)) }, ...investorFlows(acts, { date: end, value: r.endValue - parqetCash })];
     const rr = xirr(fl);
     if (rr) rangeItems.push(item(k, rr.rate * 100, r.xirr, TOL.pct));
   }
@@ -704,7 +745,7 @@ export function runAudit({ raw, snapshot, splits, now = new Date() }) {
   const fbd = flowsByDay(activities);
   const tItems = [];
   const tSkipped = [];
-  for (const [k, r] of Object.entries(raw.ranges ?? {})) {
+  for (const [k, r] of Object.entries(ranges)) {
     if (!r || typeof r !== 'object' || !r.start || r.ttwror == null) continue;
     const i0 = pts.findIndex((p) => p.date >= r.start) - 1;
     const base = pts[i0];
@@ -719,7 +760,7 @@ export function runAudit({ raw, snapshot, splits, now = new Date() }) {
   const ptt = raw.performance?.performance?.kpis?.inInterval?.ttwror;
   if (ptt != null) R.compare('Returns', 'TTWROR (max) snapshot = Parqet (copied, not recomputable)', [item('ttwror %', T.ttwror, ptt, TOL.pct)]);
   const rngItems = [];
-  for (const [k, r] of Object.entries(raw.ranges ?? {})) {
+  for (const [k, r] of Object.entries(ranges)) {
     const s = S?.ranges?.[k];
     if (!s || !r || typeof r !== 'object') continue;
     rngItems.push(item(`${k} ttwror`, s.ttwror, r.ttwror, TOL.pct), item(`${k} xirr`, s.xirr, r.xirr, TOL.pct));
@@ -731,7 +772,10 @@ export function runAudit({ raw, snapshot, splits, now = new Date() }) {
   const ser = S?.series ?? [];
   if (ser.length) {
     const last = ser[ser.length - 1];
-    R.compare('Series', 'Last point = totals.value / totals.invested', [item('value', last[1], T.value), item('invested', last[2], T.invested)]);
+    // Parqet's capital line also counts the cash accounts' purchaseValue, signed by the balance
+    // (a negative balance lowers it).
+    const cashCapital = sum(cashHoldings, (h) => Math.sign(h.position.shares) * h.position.purchaseValue);
+    R.compare('Series', 'Last point = totals.value / totals.invested (+ cash capital)', [item('value', last[1], T.value), item('invested', last[2], T.invested + cashCapital)]);
     const neg = ser.filter((p) => p[1] < 0 || p[2] < 0);
     R.add(neg.length ? 'FAIL' : 'PASS', 'Series', 'No negative values', `${neg.length} negative point(s)`, neg.map((p) => p[0]));
     const nonInc = [];
@@ -744,7 +788,7 @@ export function runAudit({ raw, snapshot, splits, now = new Date() }) {
         const p = byDate.get(dayOf(c.date));
         return [item(`${dayOf(c.date)} value`, p?.[1], c.values.history), item(`${dayOf(c.date)} invested`, p?.[2], c.values.capitalHistory)];
       }), { note: `${ser.length} snapshot vs ${cp.length} Parqet eod points` });
-      R.compare('Series', 'Parqet last capital = rebuilt Σ open FIFO cost', [item('capital', cp[cp.length - 1].values.capitalHistory, ourInvested, sumTol(H.length))]);
+      R.compare('Series', 'Parqet last capital = rebuilt Σ open FIFO cost', [item('capital', cp[cp.length - 1].values.capitalHistory, ourInvested + cashCapital, sumTol(H.length))]);
     }
   } else R.add('SKIP', 'Series', 'Series', 'snapshot has no series');
 

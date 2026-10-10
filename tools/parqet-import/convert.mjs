@@ -84,7 +84,14 @@ const kindOf = name => (/\bETF\b/i.test(name) ? "ETF" : "Stock");
 
 /* ------------------------------------------------------------- holdings */
 const holdings = new Map();
+// Cash accounts (e.g. Trade Republic's Verrechnungskonto) are not positions. Parqet counts
+// their balance in the portfolio value and nothing else, so they are kept as a separate list.
+const cashHoldings = new Set(performance.holdings.filter(h => h.asset.type === "cash").map(h => h.id));
+const cash = performance.holdings.filter(h => cashHoldings.has(h.id)).map(h => ({
+  account: accountOf(h.subAccount), name: h.nickname || "Cash", value: r2(h.position.currentValue),
+}));
 for (const h of performance.holdings) {
+  if (cashHoldings.has(h.id)) continue;
   const kind = kindOf(h.asset.name);
   holdings.set(h.id, {
     id: h.id, isin: h.asset.isin, name: h.asset.name, short: shortName(h.asset.name, kind), kind,
@@ -101,7 +108,14 @@ for (const h of performance.holdings) {
 /* ----------------------------------------------------------- activities */
 // Stable chronological order; Parqet encodes same-instant ordering in the
 // millisecond field (e.g. ...07:00:00.000 buy, ...07:00:00.001 sell).
+// A trade paid from a cash account appears twice: once on the security and once as a
+// "cpa_referencing_" mirror on the cash holding. Keep the security side only.
+const cashActs = activityPayloads.flatMap(({ raw }) => raw.activities).filter(a => cashHoldings.has(a.holdingId));
+const unhandledCash = cashActs.filter(a => !a.id.startsWith("cpa_referencing_"));
+if (unhandledCash.length)
+  throw new Error(`${unhandledCash.length} cash-account activities (e.g. ${unhandledCash[0].type} ${unhandledCash[0].id}) aren't supported yet — deposits/withdrawals need a cash ledger.`);
 const acts = activityPayloads.flatMap(({ raw }) => raw.activities)
+  .filter(a => !cashHoldings.has(a.holdingId))
   .map((a, i) => ({ ...a, _i: i }))
   .sort((a, b) => a.datetime.localeCompare(b.datetime) || a._i - b._i);
 
@@ -288,8 +302,10 @@ const series = [...seriesByDate.values()].sort((a, b) => a[0].localeCompare(b[0]
 /* --------------------------------------------------------------- totals */
 const P = performance.performance;
 const value = P.valuation.atIntervalEnd;
+const cashTotal = r2(cash.reduce((t, c) => t + c.value, 0));
 const totals = {
   value: r2(value),
+  cash: cashTotal,                                                 // included in value, as in Parqet
   invested: r2(open.reduce((s, h) => s + h.cost, 0)),
   unrealized: r2(open.reduce((t, h) => t + h.unrealized, 0)),     // = Σ rows (see note above)
   realized: r2(P.realizedGains.inInterval.gainNet),
@@ -309,11 +325,12 @@ const totals = {
 // Parqet's own gains.totalNet excludes dividends; ours includes them, labelled as such.
 totals.totalGain = r2(totals.realized + totals.unrealized + totals.dividendsNet);
 totals.costBasisMethod = "FIFO, fees excluded";
-// Ground truth: value now + everything received − everything paid, all net. Only defined when
+// Ground truth: securities value now + everything received − everything paid, all net (cash
+// balances are excluded: they are not gains). Only defined when
 // every activity is a cash event (no transfers or deposits) in EUR.
 if (acts.every(a => ["buy", "sell", "dividend", "interest", "fees_taxes"].includes(a.type) && a.currency === "EUR")) {
   const flows = acts.reduce((t, a) => t + (a.type === "buy" || a.type === "fees_taxes" ? -a.amountNet : a.amountNet), 0);
-  const truth = r2(value + flows), ok = Math.abs(truth - totals.totalGain) <= 0.05;
+  const truth = r2(value - cashTotal + flows), ok = Math.abs(truth - totals.totalGain) <= 0.05;
   reconcile.push({ isin: "TOTAL", name: "Total gain vs cash flows", ok, totals: { ours: totals.totalGain, cashFlows: truth },
     ...(ok ? {} : { issue: `total gain ${totals.totalGain} ≠ cash-flow result ${truth}` }), matches: ok ? ["cash flows"] : [] });
 }
@@ -337,7 +354,7 @@ const snapshot = {
     since: performance.interval.start, asOf: open.reduce((m, h) => (h.quote.at > m ? h.quote.at : m), ""),
     convertedAt: new Date().toISOString(),
   },
-  totals, ranges, holdings: open, closed, ledger, series,
+  totals, ranges, holdings: open, closed, cash, ledger, series,
   sync: {
     source: "Parqet", activities: acts.length, counts,
     holdingsTotal: holdings.size, holdingsOpen: open.length, holdingsClosed: closed.length,

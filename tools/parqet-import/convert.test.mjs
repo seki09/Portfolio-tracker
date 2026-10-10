@@ -24,7 +24,11 @@ const holding = (id, pf, isin, name, shares, purchaseValue, price, realized) => 
   quote: { currency: "EUR", exchange: "xetra", datetime: "2024-12-30T17:00:00.000Z", price }, performance: perfBlock(realized, shares * price - purchaseValue),
   position: { shares, purchaseValue, purchasePrice: shares ? purchaseValue / shares : 0, currentPrice: price, currentValue: shares * price, isSold: shares === 0 } });
 
-function build() {
+// Broker B settles Y through a cash account: Parqet books each trade a second time as a
+// "cpa_referencing_" mirror on the cash holding. Balance = 119 received − 101 paid = 18.
+const mirror = (a, holdingId) => ({ ...a, id: `cpa_referencing_${a.id}`, holdingId, holdingAssetType: "cash", shares: a.amountNet, price: 1 });
+
+function build({ extraCash = [] } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "parqet-multi-"));
   const w = (f, o) => writeFileSync(join(dir, f), JSON.stringify(o));
   w("portfolios.json", { items: [{ id: "pfA", name: "Broker A", currency: "EUR" }, { id: "pfB", name: "Broker B", currency: "EUR" }] });
@@ -42,6 +46,7 @@ function build() {
     act("b6", "pfB", "hB-Z", "DE00TEST0003", "buy", "2024-02-15T09:00:00.000Z", 1, 8, 0),
     act("b7", "pfB", "hB-Z", "DE00TEST0003", "sell", "2024-05-15T09:00:00.000Z", 1, 9, 0),             // Z closed at B too
   ];
+  B.push(mirror(B[3], "hB-cash"), mirror(B[4], "hB-cash"), ...extraCash);
   w("activities-pfA.json", { portfolioId: "pfA", activities: A, cursor: null, totalActivities: A.length });
   w("activities-pfB.json", { portfolioId: "pfB", activities: B, cursor: null, totalActivities: B.length });
   w("performance.json", {
@@ -49,14 +54,18 @@ function build() {
     // Realised (Parqet net = sell amountNet − FIFO cost − sold lots' buy fees):
     //   X at B: (650 − 1 − 3) − (600 + 1) = 45 · Y: (120 − 1) − (100 + 1) = 18
     //   Z at A: (27 − 1) − (30 + 1) = −5        · Z at B: 9 − 8 = 1           → total 59
-    // Cash-flow truth: value 2100 + Σ received 800 − Σ paid 2183 = 717 = 59 + unrealised 658
-    performance: { ...perfBlock(59, 658, 0), kpis: { inInterval: { xirr: 12.3, ttwror: 20.1 } }, valuation: { atIntervalStart: 0, atIntervalEnd: 2100 } },
+    // Cash-flow truth: securities 2100 + Σ received 800 − Σ paid 2183 = 717 = 59 + unrealised 658
+    // Parqet's valuation also includes the cash balance: 2100 + 18.
+    performance: { ...perfBlock(59, 658, 0), kpis: { inInterval: { xirr: 12.3, ttwror: 20.1 } }, valuation: { atIntervalStart: 0, atIntervalEnd: 2118 } },
     holdings: [
       holding("hA-X", "pfA", "IE00TEST0001", "Test World UCITS ETF", 10, 1000, 150, 0),
       holding("hB-X", "pfB", "IE00TEST0001", "Test World UCITS ETF", 4, 440, 150, 45),
       holding("hB-Y", "pfB", "US00TEST0002", "Test Corp", 0, 0, 60, 18),
       holding("hA-Z", "pfA", "DE00TEST0003", "Test AG", 0, 0, 9, -5),
       holding("hB-Z", "pfB", "DE00TEST0003", "Test AG", 0, 0, 9, 1),
+      { id: "hB-cash", subAccount: "pfB::null", nickname: "Settlement", asset: { type: "cash" }, currency: "EUR",
+        quote: { currency: "EUR", exchange: "cash", datetime: "2024-12-30T17:00:00.000Z", price: 1 }, performance: perfBlock(),
+        position: { shares: 18, purchaseValue: 18, purchasePrice: 1, currentPrice: 1, currentValue: 18, isSold: false } },
     ] });
   w("overview-charts.json", { charts: [
     { date: "2024-01-10T00:00:00.000Z", values: { history: 1000, capitalHistory: 1000 } },
@@ -98,6 +107,19 @@ test("every per-broker holding reconciles and the ledger names accounts", () => 
   assert.equal(P.totals.totalGain, 717);                       // equals the cash-flow truth above
   assert.equal(P.ledger.length, 10);
   assert.deepEqual([...new Set(P.ledger.map(l => l.account))].sort(), ["Broker A", "Broker B"]);
+});
+
+test("cash accounts: balance kept apart, mirror bookings not counted twice", () => {
+  const P = P0();
+  assert.deepEqual(P.cash, [{ account: "Broker B", name: "Settlement", value: 18 }]);
+  assert.equal(P.totals.cash, 18);
+  assert.equal(P.totals.value, 2118);                          // as Parqet: securities + cash
+  assert.equal(P.ledger.filter(l => l.isin === "US00TEST0002").length, 2);   // b4, b5 — not their mirrors
+});
+
+test("a cash-account booking that isn't a trade mirror stops the import", () => {
+  const deposit = { ...act("d1", "pfB", "hB-cash", "", "deposit", "2024-02-01T09:00:00.000Z", 100, 1), holdingAssetType: "cash" };
+  assert.throws(() => build({ extraCash: [deposit] }), /cash-account activities/);
 });
 
 let cached; function P0() { return cached ??= build(); }

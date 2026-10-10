@@ -306,6 +306,37 @@ test('runAudit: flags Parqet-style double-counted buy fees in unrealized net', (
   assert.equal(statusOf(report, 'totals.unrealized = Σ holdings unrealized'), 'FAIL');
 });
 
+test('runAudit: cash-account mirrors are verified, then left out of every other check', () => {
+  const { raw, snapshot } = fixture();
+  // Broker B pays c1 (261) from a cash account: Parqet books it again as cpa_referencing_<id>
+  // on the cash holding, whose balance (−261) is part of Parqet's valuation and capital line.
+  const pb = raw.actPayloads[1].data.map((a) => (a.id === 'c1' ? { ...a, id: 'cpa_c1' } : a));
+  const trade = pb.find((a) => a.id === 'cpa_c1');
+  const mirror = { ...trade, id: 'cpa_referencing_c1', holdingId: 'hB-cash', holdingAssetType: 'cash', shares: 261, price: 1 };
+  raw.actPayloads[1] = { ...raw.actPayloads[1], data: [...pb, mirror] };
+  raw.performance.holdings.push({
+    id: 'hB-cash', subAccount: 'pfB::null', asset: { type: 'cash' },
+    position: { shares: -261, purchaseValue: 261, currentValue: -261, isSold: false },
+    performance: { realizedGains: { inInterval: { gainGross: 0, gainNet: 0 } } },
+  });
+  raw.performance.performance.valuation.atIntervalEnd = 1500 - 261;
+  const last = raw.charts.charts[raw.charts.charts.length - 1].values;
+  Object.assign(last, { history: 1500 - 261, capitalHistory: 1000 - 261 });
+  snapshot.cash = [{ account: 'Broker B', name: 'Cash', value: -261 }];
+  snapshot.totals.value = 1500 - 261;
+  snapshot.series[snapshot.series.length - 1] = ['2025-03-10', 1500 - 261, 1000 - 261];
+  const now = new Date('2025-03-11T00:00:00Z');
+  const ok = runAudit({ raw, snapshot, splits: SPLITS, now }).report;
+  const bad = ok.rows.filter((r) => r.status === 'FAIL' || r.status === 'WARN');
+  assert.deepEqual(bad.map((r) => `${r.name}: ${r.detail} ${r.items.join('; ')}`), []);
+  assert.equal(statusOf(ok, 'Cash-account bookings'), 'PASS');
+  assert.equal(statusOf(ok, 'Cash balance'), 'PASS');
+  assert.equal(statusOf(ok, 'XIRR (newton'), 'PASS'); // cash balance stays out of the terminal value
+
+  mirror.amountNet = 250; // a mirror that no longer matches its trade
+  assert.equal(statusOf(runAudit({ raw, snapshot, splits: SPLITS, now }).report, 'Cash-account bookings'), 'FAIL');
+});
+
 test('tolerances are documented constants', () => {
   assert.equal(TOL.money, 0.01);
   assert.equal(TOL.staleDays, 3);
