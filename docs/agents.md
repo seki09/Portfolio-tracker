@@ -9,6 +9,15 @@ to this public repository, never to Parqet, and never to a broker.
 | **Sync & check** | Mon–Fri 21:30 (after the US close) | Captures every Parqet portfolio the connector can see, rebuilds the combined snapshot, runs the independent audit, republishes the app's data | Artifact data file `data/portfolio.local.js` (only if the audit passes) and data store doc `audits/latest` (+ `audits/<date>`) |
 | **Weekly review** | Sun 07:00 | Reads the latest snapshot and audit, looks for concentration, cost, tax and housekeeping issues, writes 2–4 concrete observations | Data store collection `insights`; a short push/email summary |
 
+## Connector access
+
+Routines created from a coding session cannot carry connectors in this organisation, so
+the scheduled **Sync & check** run has no Parqet access until the connector is attached to
+the routine in claude.ai → Routines. Without it the run records a `skipped` entry
+(`audits/<date>-sync`), leaves `audits/latest` — which describes the numbers on screen —
+untouched, and notifies. The **Weekly review** does not need Parqet: it reads the snapshot
+already stored in the artifact.
+
 ## Guarantees
 
 - **Read-only towards money.** Neither agent calls a Parqet write tool (`add_activities`,
