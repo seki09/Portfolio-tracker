@@ -4,7 +4,9 @@ A private, self-hosted portfolio tracker. Import broker exports (CSV/XLSX and PD
 statements), keep an immutable transaction ledger, and get a trustworthy picture of
 what you hold today and how the portfolio got there.
 
-**Status:** design phase. No code yet — start with the two documents below.
+**Status: paused (2026-10-14).** The scheduled agents are switched off and the project is not
+being developed further for now. [docs/STATUS.md](docs/STATUS.md) is the hand-over: what was
+built, how it fits together, what was learned, and how to resume.
 
 | Document | What it covers |
 | --- | --- |
@@ -13,6 +15,9 @@ what you hold today and how the portfolio got there.
 | [docs/deployment-portability.md](docs/deployment-portability.md) | Running the same codebase locally *and* on a serverless host (Netlify + managed Postgres) — the five seams, the rules that keep them intact, and the privacy trade-off |
 | [prototype/index.html](prototype/index.html) | Mobile-first clickable prototype — overview, holdings with lot drill-down, activity ledger, import flow, settings. Open the file in a browser; no build step |
 | [tools/parqet-import/](tools/parqet-import/) | Parqet → snapshot converter: rebuilds lots from raw activities, applies splits, reconciles against Parqet |
+| [tools/audit/](tools/audit/) | Independent audit of the snapshot against Parqet |
+| [tools/benchmark/](tools/benchmark/) | Portfolio vs MSCI World benchmark data and dashboard page |
+| [docs/agents.md](docs/agents.md), [docs/routines/](docs/routines/) | The two scheduled agents (now disabled) and their saved prompts |
 | [prototype/importers/](prototype/importers/) | In-browser broker statement parsers (flatex.at PDF) with tests: `node --test prototype/importers/*.test.mjs` |
 
 ## Scope decided for v1

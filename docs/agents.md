@@ -1,5 +1,8 @@
 # Scheduled agents
 
+> **Paused (2026-10-14):** both routines are disabled in claude.ai → Routines. Their prompts
+> are saved in [routines/](routines/); see [STATUS.md](STATUS.md) for how to resume.
+
 Two Claude routines keep the tracker current. Both run in a fresh cloud session, read the
 portfolio through the Parqet connector, and write **only to the private artifact** — never
 to this public repository, never to Parqet, and never to a broker.
